@@ -44,9 +44,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const USER_ID = (urlParams.get('user') || '').trim();
 
-    if (USER_ID) {
-      document.getElementById('title').textContent = 'Absensi — ' + USER_ID;
-    } else {
+    if (!USER_ID) {
       document.getElementById('buttonArea').classList.add('hidden');
       document.getElementById('result').innerHTML =
         '<b>⚠ Peringatan:</b> Akses dengan Aplikasi SIMANGU untuk melakukan Absensi';
