@@ -61,6 +61,11 @@
       html5QrCode.stop().then(() => {
         scanning = false;
         html5QrCode.clear();
+        html5QrCode = null;
+      }).catch(() => {
+        // kalau gagal stop, tetap reset state
+        scanning = false;
+        html5QrCode = null;
       });
     }
 
@@ -70,20 +75,23 @@
       lastScan = decodedText;
       lastScanTime = now;
 
-      setResult('Memproses barcode: <b>' + decodedText + '</b>…');
+      // Langsung stop kamera begitu barcode terbaca
+      stopScan();
+
+      setResult('Memproses…');
 
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         redirect: 'follow',
         headers: {
-          'Content-Type': 'text/plain;charset=utf-8'   // WAJIB: charset=utf-8
+          'Content-Type': 'text/plain;charset=utf-8'
         },
         body: JSON.stringify({ barcode: decodedText })
       })
       .then(r => r.json())
       .then(res => {
         if (!res.success) {
-          setResult('<b>✖ Gagal</b><br>' + res.message + '<br>Barcode: ' + res.barcode, 'err');
+          setResult('<b>✖ Gagal</b><br>' + res.message, 'err');
           return;
         }
         const ket = res.keterangan || '-';
@@ -92,8 +100,7 @@
            Nama: <b>${res.nama}</b><br>
            Tanggal: <b>${res.tanggal}</b><br>
            Absen: ${res.absen}<br>
-           Keterangan: <b>${ket}</b><br>
-           Barcode: ${res.barcode}`,
+           Keterangan: <b>${ket}</b>`,
           'ok'
         );
       })
