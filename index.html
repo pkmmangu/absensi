@@ -646,7 +646,7 @@
     // =========================================================
     if (USER_ID) {
       // Sembunyikan judul header (logo tetap tampil)
-      document.querySelector('.app-title-block').classList.add('hidden');
+      document.querySelector('.app-header').classList.add('hidden');
 
       // Auto-start kamera
       window.addEventListener('load', startScan);
@@ -703,6 +703,8 @@
       // Auto-stop kamera
       stopScan();
       setStatus('Memproses…', true);
+      // Sembunyikan area scanner
+      document.getElementById('scannerCard').classList.add('hidden');
 
       // Tampilkan loading
       showLoading('Memproses data…');
@@ -722,9 +724,6 @@
 
         // ===== Duplikat =====
         if (res.duplicate) {
-          // Sembunyikan area scanner
-          document.getElementById('scannerCard').classList.add('hidden');
-
           showResult(
             'warn',
             'Sudah Absen',
@@ -751,7 +750,7 @@
           : { value: 'Tepat Waktu', cls: 'badge-ok' };
 
         // Sembunyikan area scanner
-        document.getElementById('scannerCard').classList.add('hidden');
+        document.getElementById('').classList.add('hidden');
 
         showResult(
           'ok',
