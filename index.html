@@ -86,7 +86,7 @@
     }
 
     /* =====================================================================
-       HEADER GRADIENT (mirip .header di design system)
+       HEADER GRADIENT
     ===================================================================== */
     .app-header {
         width: 100%;
@@ -203,6 +203,12 @@
         box-shadow: 0 10px 30px rgba(0, 20, 40, 0.06);
         border: 1px solid rgba(0, 0, 0, 0.02);
         position: relative;
+        animation: fadeSlideUp 0.4s ease;
+    }
+
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     .scanner-status-badge {
@@ -251,7 +257,7 @@
         object-fit: cover !important;
     }
 
-    /* Sembunyikan border/button bawaan library html5-qrcode */
+    /* Sembunyikan elemen bawaan library html5-qrcode */
     #reader__dashboard_section_csr button,
     #reader__dashboard_section_swaplink {
         display: none !important;
@@ -280,11 +286,6 @@
 
     .result-card.active {
         display: block;
-    }
-
-    @keyframes fadeSlideUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
     }
 
     .result-header {
@@ -423,6 +424,7 @@
         align-items: center;
         gap: 18px;
         margin-top: 20px;
+        animation: fadeSlideUp 0.4s ease;
     }
 
     .warning-icon {
@@ -458,24 +460,6 @@
         display: flex;
         align-items: center;
         gap: 6px;
-    }
-
-    /* =====================================================================
-       FOOTER
-    ===================================================================== */
-    .app-footer {
-        text-align: center;
-        font-size: 12px;
-        color: var(--text-faint);
-        padding: 12px 0 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    .app-footer i {
-        color: var(--brand-blue);
     }
 
     /* =====================================================================
@@ -635,11 +619,6 @@
       </div>
     </div>
 
-    <div class="app-footer">
-      <i class="fas fa-circle-nodes"></i>
-      <span>SIMANGU &mdash; Sistem Informasi Manajemen Mangu</span>
-    </div>
-
   </main>
 
   <script>
@@ -666,6 +645,9 @@
     // INISIALISASI
     // =========================================================
     if (USER_ID) {
+      // Sembunyikan judul header (logo tetap tampil)
+      document.querySelector('.app-title-block').classList.add('hidden');
+
       // Auto-start kamera
       window.addEventListener('load', startScan);
     } else {
@@ -738,8 +720,11 @@
       .then(res => {
         setStatus('Selesai', false);
 
-        // Duplikat
+        // ===== Duplikat =====
         if (res.duplicate) {
+          // Sembunyikan area scanner
+          document.getElementById('scannerCard').classList.add('hidden');
+
           showResult(
             'warn',
             'Sudah Absen',
@@ -752,17 +737,21 @@
           return;
         }
 
-        // Gagal
+        // ===== Gagal =====
+        // ScannerCard TETAP tampil supaya user bisa scan ulang
         if (!res.success) {
           showResult('err', 'Gagal Menyimpan', res.message || 'Terjadi kesalahan');
           return;
         }
 
-        // Sukses
+        // ===== Sukses =====
         const ket = res.keterangan || '';
         const ketBadge = ket === 'Terlambat'
           ? { value: 'Terlambat', cls: 'badge-late' }
           : { value: 'Tepat Waktu', cls: 'badge-ok' };
+
+        // Sembunyikan area scanner
+        document.getElementById('scannerCard').classList.add('hidden');
 
         showResult(
           'ok',
