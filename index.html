@@ -16,24 +16,12 @@
     .result:empty { display: none; }
     .result.ok { background: #dcfce7; border: 1px solid #16a34a; }
     .result.err { background: #fee2e2; border: 1px solid #dc2626; }
-    button {
-      padding: 10px 18px; margin: 6px 4px; font-size: 15px;
-      border: none; border-radius: 8px; cursor: pointer;
-      background: #2563eb; color: white;
-    }
-    button.gray { background: #6b7280; }
-    button:disabled { background: #9ca3af; cursor: not-allowed; }
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
   <h2 id="title">Absensi Barcode</h2>
   <div id="reader"></div>
-
-  <div id="buttonArea" style="text-align:center">
-    <button id="startBtn" onclick="startScan()">Mulai Scan</button>
-    <button class="gray" onclick="stopScan()">Stop</button>
-  </div>
 
   <div class="result" id="result"></div>
 
@@ -44,24 +32,26 @@
     const urlParams = new URLSearchParams(window.location.search);
     const USER_ID = (urlParams.get('user') || '').trim();
 
-    if (!USER_ID) {
-      document.getElementById('buttonArea').classList.add('hidden');
-      document.getElementById('result').innerHTML =
-        '<b>⚠ Peringatan:</b> Akses dengan Aplikasi SIMANGU untuk melakukan Absensi';
-      document.getElementById('result').className = 'result err';
-    }
-
     let html5QrCode = null;
     let scanning = false;
     let lastScan = '';
     let lastScanTime = 0;
 
+    if (USER_ID) {
+      // Auto-start kamera setelah DOM siap
+      window.addEventListener('load', startScan);
+    } else {
+      // Sembunyikan area kamera & tampilkan peringatan
+      document.getElementById('reader').classList.add('hidden');
+      document.getElementById('result').innerHTML =
+        '<b>⚠ Peringatan:</b> Akses dengan Aplikasi SIMANGU untuk melakukan Absensi';
+      document.getElementById('result').className = 'result err';
+    }
+
     function startScan() {
       if (scanning) return;
-      if (!USER_ID) {
-        setResult('Tidak bisa scan: parameter user tidak ada di URL.', 'err');
-        return;
-      }
+      if (!USER_ID) return;
+
       html5QrCode = new Html5Qrcode("reader");
       html5QrCode.start(
         { facingMode: "environment" },
