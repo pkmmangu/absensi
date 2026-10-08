@@ -21,10 +21,11 @@
       background: #2563eb; color: white;
     }
     button.gray { background: #6b7280; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
   </style>
 </head>
 <body>
-  <h2>Absensi Barcode</h2>
+  <h2 id="title">Absensi Barcode</h2>
   <div id="reader"></div>
 
   <div style="text-align:center">
@@ -35,9 +36,19 @@
   <div class="result" id="result">Menunggu scan…</div>
 
   <script>
-    // ==== GANTI DENGAN URL WEB APP APPS SCRIPT ANDA ====
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzup4hPq9gLj469YznW3JrJasyFgDUFTCBKqERTUaMPRPMNAS988EWO1q2IyjS_zzf7/exec';
-    // ===================================================
+
+    // ===== Baca ?user= dari URL =====
+    const urlParams = new URLSearchParams(window.location.search);
+    const USER_ID = (urlParams.get('user') || '').trim();
+
+    if (USER_ID) {
+      document.getElementById('title').textContent = 'Absensi — ' + USER_ID;
+    } else {
+      document.getElementById('result').innerHTML =
+        '<b>⚠ Peringatan:</b> URL tidak menyertakan <code>?user=</code>. Tambahkan misalnya <code>?user=3273266303820001</code>';
+      document.getElementById('result').className = 'result err';
+    }
 
     let html5QrCode = null;
     let scanning = false;
@@ -46,6 +57,10 @@
 
     function startScan() {
       if (scanning) return;
+      if (!USER_ID) {
+        setResult('Tidak bisa scan: parameter user tidak ada di URL.', 'err');
+        return;
+      }
       html5QrCode = new Html5Qrcode("reader");
       html5QrCode.start(
         { facingMode: "environment" },
@@ -63,7 +78,6 @@
         html5QrCode.clear();
         html5QrCode = null;
       }).catch(() => {
-        // kalau gagal stop, tetap reset state
         scanning = false;
         html5QrCode = null;
       });
@@ -75,18 +89,17 @@
       lastScan = decodedText;
       lastScanTime = now;
 
-      // Langsung stop kamera begitu barcode terbaca
       stopScan();
-
       setResult('Memproses…');
 
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         redirect: 'follow',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8'
-        },
-        body: JSON.stringify({ barcode: decodedText })
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          barcode: decodedText,
+          user: USER_ID
+        })
       })
       .then(r => r.json())
       .then(res => {
