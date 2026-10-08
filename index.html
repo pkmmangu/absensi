@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Absensi Barcode</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; max-width: 520px; margin: auto; }
+    h2 { text-align: center; }
+    #reader { width: 100%; border-radius: 12px; overflow: hidden; }
+    .result {
+      margin-top: 16px; padding: 14px; border-radius: 10px;
+      background: #f3f4f6; font-size: 15px; line-height: 1.6;
+    }
+    .result.ok { background: #dcfce7; border: 1px solid #16a34a; }
+    .result.err { background: #fee2e2; border: 1px solid #dc2626; }
+    button {
+      padding: 10px 18px; margin: 6px 4px; font-size: 15px;
+      border: none; border-radius: 8px; cursor: pointer;
+      background: #2563eb; color: white;
+    }
+    button.gray { background: #6b7280; }
+  </style>
+</head>
+<body>
+  <h2>Absensi Barcode</h2>
+  <div id="reader"></div>
+
+  <div style="text-align:center">
+    <button id="startBtn" onclick="startScan()">Mulai Scan</button>
+    <button class="gray" onclick="stopScan()">Stop</button>
+  </div>
+
+  <div class="result" id="result">Menunggu scan…</div>
+
+  <script>
+    // ==== GANTI DENGAN URL WEB APP APPS SCRIPT ANDA ====
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/XXXXX/exec';
+    // ===================================================
+
+    let html5QrCode = null;
+    let scanning = false;
+    let lastScan = '';
+    let lastScanTime = 0;
+
+    function startScan() {
+      if (scanning) return;
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        () => {}
+      ).then(() => { scanning = true; })
+       .catch(err => setResult('Gagal akses kamera: ' + err, 'err'));
+    }
+
+    function stopScan() {
+      if (!scanning || !html5QrCode) return;
+      html5QrCode.stop().then(() => {
+        scanning = false;
+        html5QrCode.clear();
+      });
+    }
+
+    function onScanSuccess(decodedText) {
+      const now = Date.now();
+      if (decodedText === lastScan && now - lastScanTime < 3000) return;
+      lastScan = decodedText;
+      lastScanTime = now;
+
+      setResult('Memproses barcode: <b>' + decodedText + '</b>…');
+
+      fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ barcode: decodedText })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (!res.success) {
+          setResult('<b>✖ Gagal</b><br>' + res.message + '<br>Barcode: ' + res.barcode, 'err');
+          return;
+        }
+        const ket = res.keterangan || '-';
+        setResult(
+          `<b>✔ Berhasil disimpan</b><br>
+           Nama: <b>${res.nama}</b><br>
+           Tanggal: <b>${res.tanggal}</b><br>
+           Absen: ${res.absen}<br>
+           Keterangan: <b>${ket}</b><br>
+           Barcode: ${res.barcode}`,
+          'ok'
+        );
+      })
+      .catch(err => setResult('Error: ' + err.message, 'err'));
+    }
+
+    function setResult(html, cls) {
+      const el = document.getElementById('result');
+      el.className = 'result' + (cls ? ' ' + cls : '');
+      el.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
