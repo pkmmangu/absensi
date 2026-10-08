@@ -4,6 +4,7 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Absensi Barcode</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 16px; max-width: 520px; margin: auto; }
@@ -18,6 +19,11 @@
     .result.err  { background: #fee2e2; border: 1px solid #dc2626; }
     .result.warn { background: #fef3c7; border: 1px solid #f59e0b; }
     .hidden { display: none !important; }
+
+    .result.ok   i { color: #16a34a; }
+    .result.err  i { color: #dc2626; }
+    .result.warn i { color: #f59e0b; }
+    .result i { margin-right: 6px; }
   </style>
 </head>
 <body>
@@ -39,13 +45,14 @@
     let lastScanTime = 0;
 
     if (USER_ID) {
-      // Auto-start kamera setelah DOM siap
+      // Sembunyikan judul kalau user terdeteksi
+      document.getElementById('title').classList.add('hidden');
       window.addEventListener('load', startScan);
     } else {
-      // Sembunyikan area kamera & tampilkan peringatan
+      // Tanpa user: tampilkan judul, sembunyikan kamera, tampilkan warning
       document.getElementById('reader').classList.add('hidden');
       document.getElementById('result').innerHTML =
-        '<b>⚠ Peringatan:</b> Akses dengan Aplikasi SIMANGU untuk melakukan Absensi';
+        '<b><i class="fas fa-exclamation-triangle"></i> Peringatan:</b> Akses dengan Aplikasi SIMANGU untuk melakukan Absensi';
       document.getElementById('result').className = 'result err';
     }
 
@@ -60,7 +67,7 @@
         onScanSuccess,
         () => {}
       ).then(() => { scanning = true; })
-       .catch(err => setResult('Gagal akses kamera: ' + err, 'err'));
+       .catch(err => setResult('<i class="fas fa-times-circle"></i> Gagal akses kamera: ' + err, 'err'));
     }
 
     function stopScan() {
@@ -82,7 +89,7 @@
       lastScanTime = now;
 
       stopScan();
-      setResult('Memproses…');
+      setResult('<i class="fas fa-spinner fa-spin"></i> Memproses…');
 
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
@@ -95,10 +102,9 @@
       })
       .then(r => r.json())
       .then(res => {
-        // ===== Duplikat: user + tanggal sudah pernah absen =====
         if (res.duplicate) {
           setResult(
-            `<b>ℹ Sudah Absen</b><br>
+            `<b><i class="fas fa-info-circle"></i> Sudah Absen</b><br>
              Nama: <b>${res.nama}</b><br>
              Tanggal: ${res.tanggal}<br>
              <small>${res.message}</small>`,
@@ -107,16 +113,14 @@
           return;
         }
 
-        // ===== Gagal umum =====
         if (!res.success) {
-          setResult('<b>✖ Gagal</b><br>' + res.message, 'err');
+          setResult('<b><i class="fas fa-times-circle"></i> Gagal</b><br>' + res.message, 'err');
           return;
         }
 
-        // ===== Sukses =====
         const ket = res.keterangan || '-';
         setResult(
-          `<b>✔ Berhasil disimpan</b><br>
+          `<b><i class="fas fa-check-circle"></i> Berhasil disimpan</b><br>
            Nama: <b>${res.nama}</b><br>
            Tanggal: <b>${res.tanggal}</b><br>
            Absen: ${res.absen}<br>
@@ -124,7 +128,7 @@
           'ok'
         );
       })
-      .catch(err => setResult('Error: ' + err.message, 'err'));
+      .catch(err => setResult('<i class="fas fa-times-circle"></i> Error: ' + err.message, 'err'));
     }
 
     function setResult(html, cls) {
