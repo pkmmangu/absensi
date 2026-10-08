@@ -160,7 +160,7 @@
       font-weight: 600;
       letter-spacing: .3px;
       cursor: pointer;
-      transition: background .2s ease, transform .15s ease;
+      transition: background .2s ease, transform .15s ease, opacity .2s ease;
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
       font-family: inherit;
     }
@@ -314,7 +314,6 @@
     // KONFIGURASI
     // =========================================================
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzup4hPq9gLj469YznW3JrJasyFgDUFTCBKqERTUaMPRPMNAS988EWO1q2IyjS_zzf7/exec';
-    const CLOSE_DELAY_MS  = 1500;
 
     const urlParams = new URLSearchParams(window.location.search);
     const USER_ID   = (urlParams.get('user') || '').trim();
@@ -322,10 +321,10 @@
     // =========================================================
     // STATE
     // =========================================================
-    let html5QrCode = null;
-    let scanning    = false;
-    let starting    = false;
-    let lastScan    = '';
+    let html5QrCode  = null;
+    let scanning     = false;
+    let starting     = false;
+    let lastScan     = '';
     let lastScanTime = 0;
 
     // =========================================================
@@ -335,15 +334,16 @@
     const actionBtnLabel = document.getElementById('actionBtnLabel');
 
     actionBtn.addEventListener('click', () => {
-      // Coba tutup tab
       window.close();
-      // Fallback: kalau diblokir browser, tampilkan layar "Tutup Tab"
+      // Fallback kalau window.close() diblokir browser
       setTimeout(fallbackCloseScreen, 400);
     });
 
     function setActionLabel(text) {
       actionBtnLabel.textContent = text;
     }
+    function showActionBtn() { actionBtn.classList.remove('hidden'); }
+    function hideActionBtn() { actionBtn.classList.add('hidden'); }
 
     // =========================================================
     // INIT
@@ -353,7 +353,6 @@
     } else {
       // Tanpa ?user= : matikan scanner, tampilkan pesan tolak akses
       document.getElementById('scannerStage').classList.add('hidden');
-      setActionLabel('Tutup');
       showResult(
         'warn',
         'Akses Ditolak',
@@ -475,12 +474,14 @@
               { label: 'Jam',     value: res.absen || '-',   icon: 'fa-clock' }
             ]
           );
+          kirimKeOpener(res);
           return;
         }
 
         // ---- Gagal simpan ----
         if (!res.success) {
           showResult('err', 'Gagal Menyimpan', res.message || 'Terjadi kesalahan');
+          kirimKeOpener(res);
           return;
         }
 
@@ -502,12 +503,8 @@
           ]
         );
 
-        // Kirim ke opener + auto close
+        // Kirim ke opener — TIDAK auto-close, user yang menutup manual via tombol Tutup
         kirimKeOpener(res);
-        setTimeout(() => {
-          window.close();
-          setTimeout(fallbackCloseScreen, 500);
-        }, CLOSE_DELAY_MS);
       })
       .catch(err => {
         setStatus('Error', false);
@@ -576,7 +573,9 @@
       subtitle.textContent = '';
       grid.innerHTML = '';
       overlay.classList.add('active');
-      setActionLabel('Tutup');
+
+      // Sembunyikan tombol selama proses
+      hideActionBtn();
     }
 
     function showResult(type, title, subtitle, rows) {
@@ -620,7 +619,10 @@
       }
 
       overlay.classList.add('active');
+
+      // Tampilkan tombol dengan label "Tutup"
       setActionLabel('Tutup');
+      showActionBtn();
     }
   </script>
 </body>
