@@ -74,7 +74,10 @@
 
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
+        redirect: 'follow',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'   // WAJIB: charset=utf-8
+        },
         body: JSON.stringify({ barcode: decodedText })
       })
       .then(r => r.json())
