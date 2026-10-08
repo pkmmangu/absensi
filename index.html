@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0b3b5c">
   <title>Absensi Barcode</title>
 
@@ -16,15 +16,21 @@
 
   <style>
     :root {
-      --header-start: #0b3b5c;
-      --header-end: #145b86;
       --brand-green: #34d399;
-      --text-on-dark: #ffffff;
-      --text-on-dark-muted: rgba(255, 255, 255, 0.75);
+      --brand-blue: #3b82f6;
+      --text-primary: #0b2b3f;
+      --text-muted: #6b8aa3;
+      --bg-card: #ffffff;
+      --border-secondary: #eef3f9;
+
+      --success-bg: #d1fae5;
+      --success-text: #065f46;
       --warning-bg: #fef3c7;
       --warning-text: #92400e;
-      --danger: #ef4444;
-      --danger-hover: #dc2626;
+      --error-bg: #fee2e2;
+      --error-text: #991b1b;
+      --info-bg: #dbeafe;
+      --info-text: #1a56a4;
     }
 
     * {
@@ -38,29 +44,28 @@
     html, body {
       height: 100%;
       overflow: hidden;
-      background: #0b2b3f;
     }
 
     body {
-      position: relative;
-      color: var(--text-on-dark);
+      background: #0b2b3f;
+      color: var(--text-primary);
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ====== SCANNER FULL SCREEN ====== */
-    .scanner-card {
+    /* ==================================================
+       SCANNER STAGE (fullscreen)
+    ================================================== */
+    .scanner-stage {
       position: fixed;
       inset: 0;
-      background: #000;
+      background: #0b2b3f;
       overflow: hidden;
     }
 
     #reader {
       width: 100%;
       height: 100%;
-      border-radius: 0;
-      overflow: hidden;
-      background: #000;
+      background: #0b2b3f;
     }
 
     #reader video {
@@ -70,149 +75,202 @@
       border-radius: 0 !important;
     }
 
-    /* Sembunyikan elemen bawaan library */
-    #reader__dashboard_section_csr button,
-    #reader__dashboard_section_swaplink {
-      display: none !important;
-    }
-    #reader__scan_region {
-      background: transparent !important;
-    }
+    /* Sembunyikan UI bawaan html5-qrcode */
+    #reader__dashboard,
+    #reader__dashboard_section,
+    #reader__dashboard_section_csr,
+    #reader__dashboard_section_swaplink,
+    #reader__header_message,
     #reader__scan_region img {
       display: none !important;
     }
-    #reader__dashboard {
-      display: none !important;
-    }
+    #reader__scan_region { background: transparent !important; }
 
-    /* ====== STATUS BADGE ====== */
-    .scanner-status-badge {
+    /* ==================================================
+       BADGE STATUS (kiri atas)
+    ================================================== */
+    .scanner-badge {
       position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-      background: rgba(11, 59, 92, 0.85);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      color: var(--text-on-dark);
-      padding: 8px 18px;
+      top: calc(20px + env(safe-area-inset-top, 0px));
+      left: 20px;
+      z-index: 5;
+      background: rgba(11, 59, 92, 0.78);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #fff;
+      padding: 8px 16px;
       border-radius: 40px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       display: flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: opacity .3s ease;
     }
-
-    .scanner-status-badge .dot {
+    .scanner-badge .dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
       background: var(--brand-green);
       animation: pulseDot 1.4s ease-in-out infinite;
     }
-
     @keyframes pulseDot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.85); }
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%     { opacity: .5; transform: scale(.85); }
     }
 
-    /* ====== OVERLAY BAWAH ====== */
+    /* ==================================================
+       OVERLAY GRADIENT BAWAH
+    ================================================== */
     .bottom-overlay {
       position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 10;
-      padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 60%, rgba(0, 0, 0, 0) 100%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
+      left: 0; right: 0; bottom: 0;
+      height: 220px;
+      background: linear-gradient(
+        to top,
+        rgba(0,0,0,0.78) 0%,
+        rgba(0,0,0,0.35) 45%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 3;
     }
 
-    .overlay-hint {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-on-dark-muted);
-      text-align: center;
-      letter-spacing: 0.2px;
-    }
+    /* ==================================================
+       TOMBOL AKSI (Batal / Tutup)
+    ================================================== */
+    .action-btn {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+      z-index: 100;
 
-    .btn-cancel {
-      width: 100%;
-      max-width: 360px;
-      padding: 15px 24px;
-      border: none;
+      min-width: 190px;
+      padding: 15px 40px;
+      border: 1px solid rgba(255,255,255,0.28);
       border-radius: 40px;
-      background: var(--danger);
+      background: rgba(255,255,255,0.14);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       color: #fff;
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: .3px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
-      transition: transform 0.12s ease, background 0.15s ease;
+      transition: background .2s ease, transform .15s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      font-family: inherit;
+    }
+    .action-btn i { margin-right: 8px; font-size: 14px; }
+    .action-btn:active {
+      transform: translateX(-50%) scale(0.96);
+      background: rgba(255,255,255,0.22);
     }
 
-    .btn-cancel:active {
-      transform: scale(0.97);
-      background: var(--danger-hover);
-    }
-
-    /* ====== WARNING CARD ====== */
-    .warning-card {
+    /* ==================================================
+       RESULT OVERLAY
+    ================================================== */
+    .result-overlay {
       position: fixed;
       inset: 0;
-      background: #f4f7fc;
-      color: #0b2b3f;
-      padding: 40px 28px;
-      display: flex;
-      flex-direction: column;
+      z-index: 50;
+      display: none;
       align-items: center;
       justify-content: center;
-      gap: 18px;
-      text-align: center;
+      padding: 20px 16px 120px;
+      background: rgba(2, 15, 26, 0.68);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      animation: fadeIn .25s ease;
+    }
+    .result-overlay.active { display: flex; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .result-card {
+      background: var(--bg-card);
+      border-radius: 24px;
+      padding: 22px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+      animation: popIn .3s cubic-bezier(.2,.9,.3,1.2);
+      max-height: 100%;
+      overflow-y: auto;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(14px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0)    scale(1);   }
     }
 
-    .warning-icon {
-      width: 80px;
-      height: 80px;
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-secondary);
+    }
+    .result-icon {
+      width: 48px; height: 48px;
       border-radius: 50%;
-      background: var(--warning-bg);
-      color: var(--warning-text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 36px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .result-icon.ok      { background: var(--success-bg); color: var(--success-text); }
+    .result-icon.err     { background: var(--error-bg);   color: var(--error-text);   }
+    .result-icon.warn    { background: var(--warning-bg); color: var(--warning-text); }
+    .result-icon.info    { background: var(--info-bg);    color: var(--info-text);    }
+    .result-icon.loading { background: #eef3f9;           color: #0b3b5c;            }
+    .result-icon.loading i { animation: spin .9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-title-block { flex: 1; min-width: 0; }
+    .result-title {
+      font-size: 17px; font-weight: 700;
+      color: var(--text-primary); line-height: 1.3;
+    }
+    .result-subtitle {
+      font-size: 13px; color: var(--text-muted); margin-top: 2px;
     }
 
-    .warning-title {
-      font-size: 20px;
-      font-weight: 700;
+    .result-grid { display: flex; flex-direction: column; gap: 2px; }
+    .result-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-secondary);
+      gap: 12px;
     }
+    .result-row:last-child { border-bottom: none; }
 
-    .warning-text {
-      font-size: 15px;
-      color: #4d718b;
-      line-height: 1.6;
-      max-width: 320px;
+    .result-label {
+      font-size: 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .4px;
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 6px;
+      flex-shrink: 0;
     }
-
-    .warning-footer {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    .result-label i {
+      font-size: 13px; color: var(--brand-blue);
+      width: 16px; text-align: center;
+    }
+    .result-value {
+      font-size: 14px; font-weight: 600;
+      color: var(--text-primary);
+      text-align: right; word-break: break-word; min-width: 0;
+    }
+    .result-value.badge-late {
+      background: var(--error-bg);   color: var(--error-text);
+      padding: 3px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 700;
+    }
+    .result-value.badge-ok {
+      background: var(--success-bg); color: var(--success-text);
+      padding: 3px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 700;
     }
 
     .hidden { display: none !important; }
@@ -220,36 +278,34 @@
 </head>
 <body>
 
-  <!-- ===== SCANNER FULL SCREEN ===== -->
-  <div class="scanner-card" id="scannerCard">
-    <div class="scanner-status-badge" id="statusBadge">
+  <!-- ===== SCANNER FULLSCREEN ===== -->
+  <div class="scanner-stage" id="scannerStage">
+    <div id="reader"></div>
+    <div class="bottom-overlay"></div>
+    <div class="scanner-badge" id="statusBadge">
       <span class="dot"></span>
       <span>Memindai…</span>
     </div>
-    <div id="reader"></div>
-
-    <!-- Overlay bawah -->
-    <div class="bottom-overlay">
-      <div class="overlay-hint">Arahkan kamera ke barcode</div>
-      <button class="btn-cancel" id="btnCancel">
-        <i class="fas fa-xmark"></i>
-        <span>Batal</span>
-      </button>
-    </div>
   </div>
 
-  <!-- ===== WARNING (tanpa ?user=) ===== -->
-  <div class="warning-card hidden" id="warningCard">
-    <div class="warning-icon">
-      <i class="fas fa-triangle-exclamation"></i>
-    </div>
-    <div class="warning-title">Akses Ditolak</div>
-    <div class="warning-text">
-      Akses dengan Aplikasi <strong>SIMANGU</strong> untuk melakukan Absensi.
-    </div>
-    <div class="warning-footer">
-      <i class="fas fa-shield-halved"></i>
-      <span>Sistem Absensi Terintegrasi</span>
+  <!-- ===== TOMBOL AKSI (Batal / Tutup) ===== -->
+  <button class="action-btn" id="actionBtn" type="button">
+    <i class="fas fa-xmark"></i><span id="actionBtnLabel">Batal</span>
+  </button>
+
+  <!-- ===== OVERLAY HASIL ===== -->
+  <div class="result-overlay" id="resultOverlay">
+    <div class="result-card">
+      <div class="result-header">
+        <div class="result-icon" id="resultIcon">
+          <i class="fas fa-spinner"></i>
+        </div>
+        <div class="result-title-block">
+          <div class="result-title" id="resultTitle">Memproses…</div>
+          <div class="result-subtitle" id="resultSubtitle"></div>
+        </div>
+      </div>
+      <div class="result-grid" id="resultGrid"></div>
     </div>
   </div>
 
@@ -258,95 +314,126 @@
     // KONFIGURASI
     // =========================================================
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzup4hPq9gLj469YznW3JrJasyFgDUFTCBKqERTUaMPRPMNAS988EWO1q2IyjS_zzf7/exec';
-    const CLOSE_DELAY_MS = 1200;
+    const CLOSE_DELAY_MS  = 1500;
 
-    // =========================================================
-    // BACA ?user= DARI URL
-    // =========================================================
     const urlParams = new URLSearchParams(window.location.search);
-    const USER_ID = (urlParams.get('user') || '').trim();
+    const USER_ID   = (urlParams.get('user') || '').trim();
 
     // =========================================================
     // STATE
     // =========================================================
     let html5QrCode = null;
-    let scanning = false;
-    let lastScan = '';
+    let scanning    = false;
+    let starting    = false;
+    let lastScan    = '';
     let lastScanTime = 0;
 
     // =========================================================
-    // TOMBOL BATAL
+    // TOMBOL AKSI
     // =========================================================
-    document.getElementById('btnCancel').addEventListener('click', () => {
-      stopScan();
+    const actionBtn      = document.getElementById('actionBtn');
+    const actionBtnLabel = document.getElementById('actionBtnLabel');
+
+    actionBtn.addEventListener('click', () => {
+      // Coba tutup tab
       window.close();
-      // fallback jika window.close() diblokir
-      setTimeout(() => {
-        document.body.innerHTML = `
-          <div style="display:flex;flex-direction:column;align-items:center;
-                      justify-content:center;height:100vh;padding:24px;
-                      text-align:center;background:#0b2b3f;color:#fff;
-                      font-family:'Inter',sans-serif;">
-            <div style="font-size:18px;font-weight:600;margin-bottom:16px;">
-              Silakan tutup tab ini secara manual.
-            </div>
-            <button onclick="window.close()"
-                    style="padding:12px 28px;border:none;border-radius:40px;
-                           background:#ef4444;color:#fff;font-size:15px;
-                           font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">
-              <i class="fas fa-xmark" style="margin-right:6px;"></i>Tutup Tab
-            </button>
-          </div>`;
-      }, 400);
+      // Fallback: kalau diblokir browser, tampilkan layar "Tutup Tab"
+      setTimeout(fallbackCloseScreen, 400);
     });
 
+    function setActionLabel(text) {
+      actionBtnLabel.textContent = text;
+    }
+
     // =========================================================
-    // INISIALISASI
+    // INIT
     // =========================================================
     if (USER_ID) {
       window.addEventListener('load', startScan);
     } else {
-      document.getElementById('scannerCard').classList.add('hidden');
-      document.getElementById('warningCard').classList.remove('hidden');
+      // Tanpa ?user= : matikan scanner, tampilkan pesan tolak akses
+      document.getElementById('scannerStage').classList.add('hidden');
+      setActionLabel('Tutup');
+      showResult(
+        'warn',
+        'Akses Ditolak',
+        'Akses dengan Aplikasi SIMANGU untuk melakukan Absensi.'
+      );
     }
 
     // =========================================================
     // SCANNER
     // =========================================================
-    function startScan() {
-      if (scanning) return;
-      if (!USER_ID) return;
+    async function startScan() {
+      if (scanning || starting || !USER_ID) return;
+      starting = true;
 
-      html5QrCode = new Html5Qrcode("reader");
-      html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        onScanSuccess,
-        () => {}
-      ).then(() => {
+      try {
+        if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+
+        const shortest = Math.min(window.innerWidth, window.innerHeight);
+        const boxSize  = Math.max(200, Math.min(280, Math.floor(shortest * 0.7)));
+        const config   = { fps: 10, qrbox: { width: boxSize, height: boxSize } };
+
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            () => {}
+          );
+        } catch (err) {
+          // Fallback: kalau kamera "environment" tidak ada, pakai kamera default
+          if (err && err.name === 'NotFoundError') {
+            const cams = await Html5Qrcode.getCameras();
+            if (!cams.length) throw err;
+            await html5QrCode.start(cams[0].id, config, onScanSuccess, () => {});
+          } else {
+            throw err;
+          }
+        }
+
         scanning = true;
         setStatus('Memindai…', true);
-      }).catch(err => {
+      } catch (err) {
         setStatus('Kamera gagal', false);
-        alert('Gagal akses kamera: ' + (err.message || err));
-      });
+        showCameraError(err);
+      } finally {
+        starting = false;
+      }
     }
 
     function stopScan() {
-      if (!scanning || !html5QrCode) return;
-      try {
-        html5QrCode.stop().then(() => {
-          scanning = false;
-          html5QrCode.clear();
-          html5QrCode = null;
-        }).catch(() => {
-          scanning = false;
-          html5QrCode = null;
-        });
-      } catch (e) {
-        scanning = false;
+      if (!html5QrCode) { scanning = false; return; }
+      html5QrCode.stop()
+        .then(() => { try { html5QrCode.clear(); } catch (e) {} })
+        .catch(() => {})
+        .finally(() => { html5QrCode = null; scanning = false; });
+    }
+
+    function showCameraError(err) {
+      const reader = document.getElementById('reader');
+      const msg = (err && err.name === 'NotAllowedError')
+        ? 'Izin kamera ditolak. Aktifkan izin kamera di pengaturan browser, lalu coba lagi.'
+        : 'Kamera tidak dapat diakses. Pastikan halaman dibuka via HTTPS dan kamera tidak dipakai aplikasi lain.';
+
+      reader.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    gap:14px;padding:28px 20px;text-align:center;color:#fff;min-height:100vh;">
+          <i class="fas fa-video-slash" style="font-size:36px;color:#f59e0b;"></i>
+          <div style="font-size:14px;line-height:1.6;max-width:280px;opacity:.9;">${msg}</div>
+          <button id="retryCam" style="padding:12px 26px;border:none;border-radius:40px;
+                  background:#34d399;color:#062e22;font-weight:700;font-size:14px;
+                  cursor:pointer;font-family:inherit;">
+            <i class="fas fa-rotate-right"></i> Coba Lagi
+          </button>
+        </div>`;
+
+      document.getElementById('retryCam').onclick = () => {
+        reader.innerHTML = '';
         html5QrCode = null;
-      }
+        startScan();
+      };
     }
 
     // =========================================================
@@ -360,82 +447,180 @@
 
       stopScan();
       setStatus('Memproses…', true);
+      showLoading('Memproses data…');
 
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          barcode: decodedText,
-          user: USER_ID
-        })
+        body: JSON.stringify({ barcode: decodedText, user: USER_ID })
       })
-      .then(r => r.json())
-      .then(res => {
+      .then(r => r.text())
+      .then(text => {
+        let res;
+        try { res = JSON.parse(text); }
+        catch (e) { throw new Error('Respons server tidak valid'); }
+
         setStatus('Selesai', false);
-        kirimKeOpenerDanTutup(res);
+
+        // ---- Duplikat ----
+        if (res.duplicate) {
+          showResult(
+            'warn',
+            'Sudah Absen',
+            res.message || 'Data sudah tercatat',
+            [
+              { label: 'Nama',    value: res.nama || '-',    icon: 'fa-user' },
+              { label: 'Tanggal', value: res.tanggal || '-', icon: 'fa-calendar-day' },
+              { label: 'Jam',     value: res.absen || '-',   icon: 'fa-clock' }
+            ]
+          );
+          return;
+        }
+
+        // ---- Gagal simpan ----
+        if (!res.success) {
+          showResult('err', 'Gagal Menyimpan', res.message || 'Terjadi kesalahan');
+          return;
+        }
+
+        // ---- Sukses ----
+        const ket = res.keterangan || '';
+        const ketBadge = ket === 'Terlambat'
+          ? { value: 'Terlambat',    cls: 'badge-late' }
+          : { value: 'Tepat Waktu',  cls: 'badge-ok'   };
+
+        showResult(
+          'ok',
+          'Absensi Berhasil',
+          'Data absensi tercatat di sistem',
+          [
+            { label: 'Nama',       value: res.nama || '-',    icon: 'fa-user' },
+            { label: 'Tanggal',    value: res.tanggal || '-', icon: 'fa-calendar-day' },
+            { label: 'Jam Absen',  value: res.absen || '-',   icon: 'fa-clock' },
+            { label: 'Keterangan', ...ketBadge,               icon: 'fa-circle-info' }
+          ]
+        );
+
+        // Kirim ke opener + auto close
+        kirimKeOpener(res);
+        setTimeout(() => {
+          window.close();
+          setTimeout(fallbackCloseScreen, 500);
+        }, CLOSE_DELAY_MS);
       })
       .catch(err => {
         setStatus('Error', false);
-        alert('Error: ' + (err.message || 'Gagal menghubungi server'));
+        showResult('err', 'Error Jaringan', err.message || 'Gagal menghubungi server');
       });
     }
 
     // =========================================================
-    // KIRIM HASIL KE OPENER & TUTUP
+    // KIRIM HASIL KE OPENER
     // =========================================================
-    function kirimKeOpenerDanTutup(res) {
+    function kirimKeOpener(res) {
       if (window.opener && !window.opener.closed) {
         try {
-          window.opener.postMessage({
-            type: 'SCAN_RESULT',
-            data: res
-          }, '*');
-        } catch (e) {
-          console.warn('postMessage gagal:', e);
-        }
+          window.opener.postMessage({ type: 'SCAN_RESULT', data: res }, '*');
+        } catch (e) { console.warn('postMessage gagal:', e); }
       }
-
-      setTimeout(() => {
-        window.close();
-
-        setTimeout(() => {
-          document.body.innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;
-                        justify-content:center;height:100vh;padding:24px;
-                        text-align:center;background:#0b2b3f;color:#fff;
-                        font-family:'Inter',sans-serif;">
-              <div style="width:80px;height:80px;border-radius:50%;
-                          background:#d1fae5;color:#065f46;
-                          display:flex;align-items:center;justify-content:center;
-                          font-size:36px;margin-bottom:20px;">
-                <i class="fas fa-circle-check"></i>
-              </div>
-              <div style="font-size:20px;font-weight:700;margin-bottom:8px;">
-                Absensi Selesai
-              </div>
-              <div style="font-size:14px;color:#94a3b8;margin-bottom:24px;max-width:280px;">
-                Silakan tutup tab ini secara manual untuk kembali.
-              </div>
-              <button onclick="window.close()"
-                      style="padding:12px 28px;border:none;border-radius:40px;
-                             background:#0b3b5c;color:#fff;font-size:15px;
-                             font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;">
-                <i class="fas fa-xmark" style="margin-right:6px;"></i>Tutup Tab
-              </button>
-            </div>`;
-        }, 500);
-      }, CLOSE_DELAY_MS);
     }
 
     // =========================================================
-    // UI HELPER
+    // FALLBACK JIKA window.close() DIBLOKIR
+    // =========================================================
+    function fallbackCloseScreen() {
+      if (document.getElementById('fallbackClose')) return;
+
+      const el = document.createElement('div');
+      el.id = 'fallbackClose';
+      el.style.cssText = `
+        position:fixed;inset:0;z-index:9999;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:14px;padding:24px;text-align:center;
+        font-family:'Inter',sans-serif;background:#0b3b5c;color:#fff;`;
+      el.innerHTML = `
+        <i class="fas fa-circle-check" style="font-size:44px;color:#34d399;"></i>
+        <div style="font-size:19px;font-weight:700;">Selesai</div>
+        <div style="font-size:14px;color:rgba(255,255,255,.75);max-width:280px;line-height:1.6;">
+          Silakan tutup tab ini untuk kembali ke aplikasi.
+        </div>
+        <button onclick="window.close()" style="margin-top:8px;padding:13px 30px;border:none;
+                border-radius:40px;background:#34d399;color:#062e22;font-weight:700;
+                font-size:15px;cursor:pointer;font-family:inherit;">
+          <i class="fas fa-xmark"></i> Tutup Tab
+        </button>`;
+      document.body.appendChild(el);
+    }
+
+    // =========================================================
+    // UI HELPERS
     // =========================================================
     function setStatus(text, active) {
       const badge = document.getElementById('statusBadge');
       if (!badge) return;
       badge.querySelector('span:last-child').textContent = text;
       badge.style.opacity = active ? '1' : '0.7';
+    }
+
+    function showLoading(text) {
+      const overlay  = document.getElementById('resultOverlay');
+      const icon     = document.getElementById('resultIcon');
+      const title    = document.getElementById('resultTitle');
+      const subtitle = document.getElementById('resultSubtitle');
+      const grid     = document.getElementById('resultGrid');
+
+      icon.className = 'result-icon loading';
+      icon.innerHTML = '<i class="fas fa-spinner"></i>';
+      title.textContent = text || 'Memproses…';
+      subtitle.textContent = '';
+      grid.innerHTML = '';
+      overlay.classList.add('active');
+      setActionLabel('Tutup');
+    }
+
+    function showResult(type, title, subtitle, rows) {
+      const overlay  = document.getElementById('resultOverlay');
+      const icon     = document.getElementById('resultIcon');
+      const titleEl  = document.getElementById('resultTitle');
+      const subEl    = document.getElementById('resultSubtitle');
+      const grid     = document.getElementById('resultGrid');
+
+      const iconMap = {
+        ok:   'fa-circle-check',
+        err:  'fa-circle-xmark',
+        warn: 'fa-circle-info',
+        info: 'fa-circle-info'
+      };
+
+      icon.className = 'result-icon ' + type;
+      icon.innerHTML = '<i class="fas ' + (iconMap[type] || iconMap.info) + '"></i>';
+      titleEl.textContent = title || '';
+      subEl.textContent   = subtitle || '';
+
+      grid.innerHTML = '';
+      if (rows && rows.length) {
+        rows.forEach(row => {
+          const rowEl = document.createElement('div');
+          rowEl.className = 'result-row';
+
+          const labelEl = document.createElement('div');
+          labelEl.className = 'result-label';
+          labelEl.innerHTML =
+            '<i class="fas ' + (row.icon || 'fa-circle') + '"></i><span>' + row.label + '</span>';
+
+          const valueEl = document.createElement('div');
+          valueEl.className = 'result-value' + (row.cls ? ' ' + row.cls : '');
+          valueEl.textContent = row.value;
+
+          rowEl.appendChild(labelEl);
+          rowEl.appendChild(valueEl);
+          grid.appendChild(rowEl);
+        });
+      }
+
+      overlay.classList.add('active');
+      setActionLabel('Tutup');
     }
   </script>
 </body>
