@@ -14,8 +14,9 @@
       background: #f3f4f6; font-size: 15px; line-height: 1.6;
     }
     .result:empty { display: none; }
-    .result.ok { background: #dcfce7; border: 1px solid #16a34a; }
-    .result.err { background: #fee2e2; border: 1px solid #dc2626; }
+    .result.ok   { background: #dcfce7; border: 1px solid #16a34a; }
+    .result.err  { background: #fee2e2; border: 1px solid #dc2626; }
+    .result.warn { background: #fef3c7; border: 1px solid #f59e0b; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -94,10 +95,25 @@
       })
       .then(r => r.json())
       .then(res => {
+        // ===== Duplikat: user + tanggal sudah pernah absen =====
+        if (res.duplicate) {
+          setResult(
+            `<b>ℹ Sudah Absen</b><br>
+             Nama: <b>${res.nama}</b><br>
+             Tanggal: ${res.tanggal}<br>
+             <small>${res.message}</small>`,
+            'warn'
+          );
+          return;
+        }
+
+        // ===== Gagal umum =====
         if (!res.success) {
           setResult('<b>✖ Gagal</b><br>' + res.message, 'err');
           return;
         }
+
+        // ===== Sukses =====
         const ket = res.keterangan || '-';
         setResult(
           `<b>✔ Berhasil disimpan</b><br>
