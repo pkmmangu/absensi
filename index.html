@@ -18,7 +18,7 @@
 
   <style>
     /* =====================================================================
-       VARIABEL WARNA GLOBAL (dari design system)
+       VARIABEL WARNA GLOBAL
     ===================================================================== */
     :root {
         --bg-primary: #f4f7fc;
@@ -55,7 +55,6 @@
         --btn-primary: #0b3b5c;
         --btn-primary-hover: #134f77;
         --btn-secondary: #eef3f9;
-        --btn-secondary-text: #1b4b6c;
         --btn-success: #34d399;
     }
 
@@ -463,6 +462,24 @@
     }
 
     /* =====================================================================
+       FOOTER
+    ===================================================================== */
+    .app-footer {
+        text-align: center;
+        font-size: 12px;
+        color: var(--text-faint);
+        padding: 12px 0 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .app-footer i {
+        color: var(--brand-blue);
+    }
+
+    /* =====================================================================
        HIDDEN UTILITY
     ===================================================================== */
     .hidden { display: none !important; }
@@ -476,85 +493,28 @@
             border-radius: 0 0 28px 28px;
         }
 
-        .app-logo {
-            width: 42px;
-            height: 42px;
-        }
+        .app-logo { width: 42px; height: 42px; }
+        .app-logo svg { width: 22px; height: 22px; }
+        .app-title { font-size: 16px; }
+        .app-subtitle { font-size: 12px; }
 
-        .app-logo svg {
-            width: 22px;
-            height: 22px;
-        }
+        .app-content { padding: 16px 12px 24px; }
 
-        .app-title {
-            font-size: 16px;
-        }
-
-        .app-subtitle {
-            font-size: 12px;
-        }
-
-        .app-content {
-            padding: 16px 12px 24px;
-        }
-
-        .scanner-card {
-            border-radius: 20px;
-            padding: 10px;
-        }
-
-        .result-card {
-            padding: 16px 16px;
-            border-radius: 20px;
-        }
-
-        .warning-card {
-            padding: 32px 20px;
-            border-radius: 22px;
-        }
-
-        .warning-icon {
-            width: 68px;
-            height: 68px;
-            font-size: 30px;
-        }
-
-        .warning-title {
-            font-size: 18px;
-        }
+        .scanner-card { border-radius: 20px; padding: 10px; }
+        .result-card { padding: 16px 16px; border-radius: 20px; }
+        .warning-card { padding: 32px 20px; border-radius: 22px; }
+        .warning-icon { width: 68px; height: 68px; font-size: 30px; }
+        .warning-title { font-size: 18px; }
     }
 
     @media (min-width: 640px) {
-        .app-content {
-            padding: 24px 24px 40px;
-        }
-
-        .app-header {
-            padding: 22px 32px 26px;
-            border-radius: 0 0 36px 36px;
-        }
-
-        .app-title {
-            font-size: 20px;
-        }
-
-        .app-subtitle {
-            font-size: 14px;
-        }
-
-        .scanner-card {
-            padding: 16px;
-            border-radius: 28px;
-        }
-
-        #reader {
-            min-height: 340px;
-        }
-
-        .result-card {
-            padding: 22px 26px;
-            border-radius: 28px;
-        }
+        .app-content { padding: 24px 24px 40px; }
+        .app-header { padding: 22px 32px 26px; border-radius: 0 0 36px 36px; }
+        .app-title { font-size: 20px; }
+        .app-subtitle { font-size: 14px; }
+        .scanner-card { padding: 16px; border-radius: 28px; }
+        #reader { min-height: 340px; }
+        .result-card { padding: 22px 26px; border-radius: 28px; }
     }
   </style>
 </head>
@@ -619,6 +579,11 @@
       </div>
     </div>
 
+    <div class="app-footer">
+      <i class="fas fa-circle-nodes"></i>
+      <span>SIMANGU &mdash; Sistem Informasi Manajemen Mangu</span>
+    </div>
+
   </main>
 
   <script>
@@ -626,6 +591,9 @@
     // KONFIGURASI
     // =========================================================
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzup4hPq9gLj469YznW3JrJasyFgDUFTCBKqERTUaMPRPMNAS988EWO1q2IyjS_zzf7/exec';
+
+    // Delay sebelum close tab (ms). Ubah kalau mau lebih cepat/lambat.
+    const CLOSE_DELAY_MS = 1500;
 
     // =========================================================
     // BACA ?user= DARI URL
@@ -646,7 +614,7 @@
     // =========================================================
     if (USER_ID) {
       // Sembunyikan judul header (logo tetap tampil)
-      document.querySelector('.app-header').classList.add('hidden');
+      document.querySelector('.app-title-block').classList.add('hidden');
 
       // Auto-start kamera
       window.addEventListener('load', startScan);
@@ -703,8 +671,6 @@
       // Auto-stop kamera
       stopScan();
       setStatus('Memproses…', true);
-      // Sembunyikan area scanner
-      document.getElementById('scannerCard').classList.add('hidden');
 
       // Tampilkan loading
       showLoading('Memproses data…');
@@ -724,6 +690,8 @@
 
         // ===== Duplikat =====
         if (res.duplicate) {
+          document.getElementById('scannerCard').classList.add('hidden');
+
           showResult(
             'warn',
             'Sudah Absen',
@@ -733,6 +701,9 @@
               { label: 'Tanggal', value: res.tanggal || '-', icon: 'fa-calendar-day' }
             ]
           );
+
+          // Kirim & tutup
+          kirimKeOpenerDanTutup(res);
           return;
         }
 
@@ -749,6 +720,8 @@
           ? { value: 'Terlambat', cls: 'badge-late' }
           : { value: 'Tepat Waktu', cls: 'badge-ok' };
 
+        document.getElementById('scannerCard').classList.add('hidden');
+
         showResult(
           'ok',
           'Berhasil Disimpan',
@@ -760,11 +733,67 @@
             { label: 'Keterangan', ...ketBadge,                 icon: 'fa-circle-info' }
           ]
         );
+
+        // Kirim & tutup
+        kirimKeOpenerDanTutup(res);
       })
       .catch(err => {
         setStatus('Error', false);
         showResult('err', 'Error Jaringan', err.message || 'Gagal menghubungi server');
       });
+    }
+
+    // =========================================================
+    // KIRIM HASIL KE OPENER & TUTUP TAB
+    // =========================================================
+    function kirimKeOpenerDanTutup(res) {
+      // 1) Kirim hasil ke tab opener (GAS Index)
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage({
+            type: 'SCAN_RESULT',
+            data: res
+          }, '*');
+        } catch (e) {
+          console.warn('postMessage gagal:', e);
+        }
+      }
+
+      // 2) Tutup tab setelah delay singkat (biar user sempat lihat hasil)
+      setTimeout(() => {
+        window.close();
+
+        // 3) Fallback kalau window.close() diblokir browser
+        setTimeout(() => {
+          document.body.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;
+                        justify-content:center;height:100vh;
+                        font-family:'Inter',sans-serif;padding:24px;text-align:center;
+                        background:#f4f7fc;">
+              <div style="width:80px;height:80px;border-radius:50%;
+                          background:#d1fae5;color:#065f46;
+                          display:flex;align-items:center;justify-content:center;
+                          font-size:36px;margin-bottom:20px;
+                          box-shadow:0 10px 24px rgba(6,95,70,0.15);">
+                <i class="fas fa-circle-check"></i>
+              </div>
+              <div style="font-size:20px;font-weight:700;color:#0b2b3f;margin-bottom:8px;">
+                Absensi Berhasil
+              </div>
+              <div style="font-size:14px;color:#4d718b;margin-bottom:24px;max-width:280px;">
+                Silakan tutup tab ini secara manual untuk kembali ke aplikasi.
+              </div>
+              <button onclick="window.close()"
+                      style="padding:12px 28px;border:none;border-radius:40px;
+                             background:#0b3b5c;color:white;font-size:15px;
+                             font-weight:600;cursor:pointer;
+                             font-family:'Inter',sans-serif;
+                             box-shadow:0 6px 16px rgba(11,59,92,0.25);">
+                <i class="fas fa-xmark" style="margin-right:6px;"></i>Tutup Tab
+              </button>
+            </div>`;
+        }, 500);
+      }, CLOSE_DELAY_MS);
     }
 
     // =========================================================
@@ -832,7 +861,6 @@
       }
 
       card.classList.add('active');
-      // Scroll ke hasil
       setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
     }
   </script>
