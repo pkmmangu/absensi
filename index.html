@@ -1,61 +1,683 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
   <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0b3b5c">
   <title>Absensi Barcode</title>
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+  <!-- QR Scanner Library -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
   <style>
-    body { font-family: Arial, sans-serif; padding: 16px; max-width: 520px; margin: auto; }
-    h2 { text-align: center; }
-    #reader { width: 100%; border-radius: 12px; overflow: hidden; }
-    .result {
-      margin-top: 16px; padding: 14px; border-radius: 10px;
-      background: #f3f4f6; font-size: 15px; line-height: 1.6;
+    /* =====================================================================
+       VARIABEL WARNA GLOBAL (dari design system)
+    ===================================================================== */
+    :root {
+        --bg-primary: #f4f7fc;
+        --bg-card: #ffffff;
+        --bg-input: #fafdff;
+        --bg-hover: #f0f6fc;
+
+        --header-start: #0b3b5c;
+        --header-end: #145b86;
+        --brand-green: #34d399;
+        --brand-blue: #3b82f6;
+
+        --text-primary: #0b2b3f;
+        --text-secondary: #4d718b;
+        --text-muted: #6b8aa3;
+        --text-faint: #94a3b8;
+        --text-on-dark: #ffffff;
+        --text-on-dark-muted: rgba(255, 255, 255, 0.75);
+
+        --border-primary: #e1ebf5;
+        --border-secondary: #eef3f9;
+        --border-light: #d9e2ec;
+
+        --success-bg: #d1fae5;
+        --success-text: #065f46;
+        --warning-bg: #fef3c7;
+        --warning-text: #92400e;
+        --warning-strong: #f59e0b;
+        --error-bg: #fee2e2;
+        --error-text: #991b1b;
+        --info-bg: #dbeafe;
+        --info-text: #1a56a4;
+
+        --btn-primary: #0b3b5c;
+        --btn-primary-hover: #134f77;
+        --btn-secondary: #eef3f9;
+        --btn-secondary-text: #1b4b6c;
+        --btn-success: #34d399;
     }
-    .result:empty { display: none; }
-    .result.ok   { background: #dcfce7; border: 1px solid #16a34a; }
-    .result.err  { background: #fee2e2; border: 1px solid #dc2626; }
-    .result.warn { background: #fef3c7; border: 1px solid #f59e0b; }
+
+    /* =====================================================================
+       RESET & GLOBAL
+    ===================================================================== */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+        height: 100%;
+    }
+
+    body {
+        background: var(--bg-primary);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: var(--text-primary);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+    }
+
+    /* =====================================================================
+       HEADER GRADIENT (mirip .header di design system)
+    ===================================================================== */
+    .app-header {
+        width: 100%;
+        background: linear-gradient(135deg, var(--header-start), var(--header-end));
+        padding: 18px 20px 20px;
+        border-radius: 0 0 32px 32px;
+        box-shadow: 0 10px 30px rgba(0, 20, 40, 0.15);
+        position: relative;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .app-header::before {
+        content: "";
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.05);
+        top: -140px;
+        right: -70px;
+        pointer-events: none;
+    }
+
+    .app-header::after {
+        content: "";
+        position: absolute;
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        background: rgba(52, 211, 153, 0.10);
+        bottom: -110px;
+        left: -50px;
+        pointer-events: none;
+    }
+
+    .app-header-content {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .app-logo {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--brand-green), var(--brand-blue));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        flex-shrink: 0;
+    }
+
+    .app-logo svg {
+        width: 24px;
+        height: 24px;
+        fill: var(--text-on-dark);
+        stroke: var(--text-on-dark);
+    }
+
+    .app-title-block {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .app-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-on-dark);
+        letter-spacing: -0.3px;
+        line-height: 1.2;
+    }
+
+    .app-subtitle {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-on-dark-muted);
+        letter-spacing: 0.2px;
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .app-subtitle i {
+        font-size: 12px;
+        color: var(--brand-green);
+    }
+
+    /* =====================================================================
+       KONTEN UTAMA
+    ===================================================================== */
+    .app-content {
+        width: 100%;
+        max-width: 520px;
+        padding: 20px 16px 32px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    /* =====================================================================
+       KARTU SCANNER
+    ===================================================================== */
+    .scanner-card {
+        background: var(--bg-card);
+        border-radius: 24px;
+        padding: 14px;
+        box-shadow: 0 10px 30px rgba(0, 20, 40, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.02);
+        position: relative;
+    }
+
+    .scanner-status-badge {
+        position: absolute;
+        top: 22px;
+        left: 22px;
+        z-index: 10;
+        background: rgba(11, 59, 92, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        color: var(--text-on-dark);
+        padding: 6px 14px;
+        border-radius: 40px;
+        font-size: 12px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .scanner-status-badge .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--brand-green);
+        animation: pulseDot 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    #reader {
+        width: 100%;
+        border-radius: 18px;
+        overflow: hidden;
+        background: #0b2b3f;
+        min-height: 260px;
+        position: relative;
+    }
+
+    #reader video {
+        border-radius: 18px !important;
+        object-fit: cover !important;
+    }
+
+    /* Sembunyikan border/button bawaan library html5-qrcode */
+    #reader__dashboard_section_csr button,
+    #reader__dashboard_section_swaplink {
+        display: none !important;
+    }
+
+    #reader__scan_region {
+        background: transparent !important;
+    }
+
+    #reader__scan_region img {
+        display: none !important;
+    }
+
+    /* =====================================================================
+       KARTU HASIL
+    ===================================================================== */
+    .result-card {
+        background: var(--bg-card);
+        border-radius: 24px;
+        padding: 18px 20px;
+        box-shadow: 0 10px 30px rgba(0, 20, 40, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.02);
+        display: none;
+        animation: fadeSlideUp 0.3s ease;
+    }
+
+    .result-card.active {
+        display: block;
+    }
+
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--border-secondary);
+    }
+
+    .result-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .result-icon.ok   { background: var(--success-bg); color: var(--success-text); }
+    .result-icon.err  { background: var(--error-bg); color: var(--error-text); }
+    .result-icon.warn { background: var(--warning-bg); color: var(--warning-text); }
+    .result-icon.info { background: var(--info-bg); color: var(--info-text); }
+    .result-icon.loading {
+        background: var(--bg-hover);
+        color: var(--btn-primary);
+    }
+
+    .result-icon.loading i {
+        animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .result-title-block {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .result-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.3;
+    }
+
+    .result-subtitle {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+
+    /* Grid detail */
+    .result-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .result-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border-secondary);
+        gap: 12px;
+    }
+
+    .result-row:last-child {
+        border-bottom: none;
+    }
+
+    .result-label {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .result-label i {
+        font-size: 13px;
+        color: var(--brand-blue);
+        width: 16px;
+        text-align: center;
+    }
+
+    .result-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-align: right;
+        word-break: break-word;
+        min-width: 0;
+    }
+
+    .result-value.badge-late {
+        background: var(--error-bg);
+        color: var(--error-text);
+        padding: 3px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .result-value.badge-ok {
+        background: var(--success-bg);
+        color: var(--success-text);
+        padding: 3px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    /* =====================================================================
+       HALAMAN WARNING (tanpa ?user=)
+    ===================================================================== */
+    .warning-card {
+        background: var(--bg-card);
+        border-radius: 28px;
+        padding: 40px 28px;
+        box-shadow: 0 10px 30px rgba(0, 20, 40, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.02);
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+        margin-top: 20px;
+    }
+
+    .warning-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--warning-bg);
+        color: var(--warning-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+    }
+
+    .warning-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.3;
+    }
+
+    .warning-text {
+        font-size: 15px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        max-width: 320px;
+    }
+
+    .warning-footer {
+        font-size: 12px;
+        color: var(--text-faint);
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* =====================================================================
+       FOOTER
+    ===================================================================== */
+    .app-footer {
+        text-align: center;
+        font-size: 12px;
+        color: var(--text-faint);
+        padding: 12px 0 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .app-footer i {
+        color: var(--brand-blue);
+    }
+
+    /* =====================================================================
+       HIDDEN UTILITY
+    ===================================================================== */
     .hidden { display: none !important; }
 
-    .result.ok   i { color: #16a34a; }
-    .result.err  i { color: #dc2626; }
-    .result.warn i { color: #f59e0b; }
-    .result i { margin-right: 6px; }
+    /* =====================================================================
+       RESPONSIVE
+    ===================================================================== */
+    @media (max-width: 400px) {
+        .app-header {
+            padding: 16px 16px 18px;
+            border-radius: 0 0 28px 28px;
+        }
+
+        .app-logo {
+            width: 42px;
+            height: 42px;
+        }
+
+        .app-logo svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .app-title {
+            font-size: 16px;
+        }
+
+        .app-subtitle {
+            font-size: 12px;
+        }
+
+        .app-content {
+            padding: 16px 12px 24px;
+        }
+
+        .scanner-card {
+            border-radius: 20px;
+            padding: 10px;
+        }
+
+        .result-card {
+            padding: 16px 16px;
+            border-radius: 20px;
+        }
+
+        .warning-card {
+            padding: 32px 20px;
+            border-radius: 22px;
+        }
+
+        .warning-icon {
+            width: 68px;
+            height: 68px;
+            font-size: 30px;
+        }
+
+        .warning-title {
+            font-size: 18px;
+        }
+    }
+
+    @media (min-width: 640px) {
+        .app-content {
+            padding: 24px 24px 40px;
+        }
+
+        .app-header {
+            padding: 22px 32px 26px;
+            border-radius: 0 0 36px 36px;
+        }
+
+        .app-title {
+            font-size: 20px;
+        }
+
+        .app-subtitle {
+            font-size: 14px;
+        }
+
+        .scanner-card {
+            padding: 16px;
+            border-radius: 28px;
+        }
+
+        #reader {
+            min-height: 340px;
+        }
+
+        .result-card {
+            padding: 22px 26px;
+            border-radius: 28px;
+        }
+    }
   </style>
 </head>
 <body>
-  <h2 id="title">Absensi Barcode</h2>
-  <div id="reader"></div>
 
-  <div class="result" id="result"></div>
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="app-header-content">
+      <div class="app-logo">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+        </svg>
+      </div>
+      <div class="app-title-block">
+        <div class="app-title">Absensi Barcode</div>
+        <div class="app-subtitle">
+          <i class="fas fa-circle-check"></i>
+          <span>PKK Mangu</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== KONTEN UTAMA ===== -->
+  <main class="app-content">
+
+    <!-- Area Kamera -->
+    <div class="scanner-card" id="scannerCard">
+      <div class="scanner-status-badge" id="statusBadge">
+        <span class="dot"></span>
+        <span>Memindai…</span>
+      </div>
+      <div id="reader"></div>
+    </div>
+
+    <!-- Kartu Hasil -->
+    <div class="result-card" id="resultCard">
+      <div class="result-header">
+        <div class="result-icon" id="resultIcon">
+          <i class="fas fa-spinner"></i>
+        </div>
+        <div class="result-title-block">
+          <div class="result-title" id="resultTitle">Memproses…</div>
+          <div class="result-subtitle" id="resultSubtitle"></div>
+        </div>
+      </div>
+      <div class="result-grid" id="resultGrid"></div>
+    </div>
+
+    <!-- Kartu Warning (tanpa ?user=) -->
+    <div class="warning-card hidden" id="warningCard">
+      <div class="warning-icon">
+        <i class="fas fa-triangle-exclamation"></i>
+      </div>
+      <div class="warning-title">Akses Ditolak</div>
+      <div class="warning-text">
+        Akses dengan Aplikasi <strong>SIMANGU</strong> untuk melakukan Absensi.
+      </div>
+      <div class="warning-footer">
+        <i class="fas fa-shield-halved"></i>
+        <span>Sistem Absensi Terintegrasi</span>
+      </div>
+    </div>
+
+    <div class="app-footer">
+      <i class="fas fa-circle-nodes"></i>
+      <span>SIMANGU &mdash; Sistem Informasi Manajemen Mangu</span>
+    </div>
+
+  </main>
 
   <script>
+    // =========================================================
+    // KONFIGURASI
+    // =========================================================
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzup4hPq9gLj469YznW3JrJasyFgDUFTCBKqERTUaMPRPMNAS988EWO1q2IyjS_zzf7/exec';
 
-    // ===== Baca ?user= dari URL =====
+    // =========================================================
+    // BACA ?user= DARI URL
+    // =========================================================
     const urlParams = new URLSearchParams(window.location.search);
     const USER_ID = (urlParams.get('user') || '').trim();
 
+    // =========================================================
+    // STATE
+    // =========================================================
     let html5QrCode = null;
     let scanning = false;
     let lastScan = '';
     let lastScanTime = 0;
 
+    // =========================================================
+    // INISIALISASI
+    // =========================================================
     if (USER_ID) {
-      // Sembunyikan judul kalau user terdeteksi
-      document.getElementById('title').classList.add('hidden');
+      // Auto-start kamera
       window.addEventListener('load', startScan);
     } else {
-      // Tanpa user: tampilkan judul, sembunyikan kamera, tampilkan warning
-      document.getElementById('reader').classList.add('hidden');
-      document.getElementById('result').innerHTML =
-        '<b><i class="fas fa-exclamation-triangle"></i> Peringatan:</b> Akses dengan Aplikasi SIMANGU untuk melakukan Absensi';
-      document.getElementById('result').className = 'result err';
+      // Tanpa user: sembunyikan scanner & result, tampilkan warning
+      document.getElementById('scannerCard').classList.add('hidden');
+      document.getElementById('resultCard').classList.add('hidden');
+      document.getElementById('warningCard').classList.remove('hidden');
     }
 
+    // =========================================================
+    // SCANNER
+    // =========================================================
     function startScan() {
       if (scanning) return;
       if (!USER_ID) return;
@@ -66,8 +688,13 @@
         { fps: 10, qrbox: { width: 250, height: 250 } },
         onScanSuccess,
         () => {}
-      ).then(() => { scanning = true; })
-       .catch(err => setResult('<i class="fas fa-times-circle"></i> Gagal akses kamera: ' + err, 'err'));
+      ).then(() => {
+        scanning = true;
+        setStatus('Memindai…', true);
+      }).catch(err => {
+        setStatus('Kamera gagal', false);
+        showResult('err', 'Gagal Akses Kamera', err.message || 'Izin kamera ditolak');
+      });
     }
 
     function stopScan() {
@@ -82,14 +709,21 @@
       });
     }
 
+    // =========================================================
+    // HANDLER SCAN
+    // =========================================================
     function onScanSuccess(decodedText) {
       const now = Date.now();
       if (decodedText === lastScan && now - lastScanTime < 3000) return;
       lastScan = decodedText;
       lastScanTime = now;
 
+      // Auto-stop kamera
       stopScan();
-      setResult('<i class="fas fa-spinner fa-spin"></i> Memproses…');
+      setStatus('Memproses…', true);
+
+      // Tampilkan loading
+      showLoading('Memproses data…');
 
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
@@ -102,39 +736,119 @@
       })
       .then(r => r.json())
       .then(res => {
+        setStatus('Selesai', false);
+
+        // Duplikat
         if (res.duplicate) {
-          setResult(
-            `<b><i class="fas fa-info-circle"></i> Sudah Absen</b><br>
-             Nama: <b>${res.nama}</b><br>
-             Tanggal: ${res.tanggal}<br>
-             <small>${res.message}</small>`,
-            'warn'
+          showResult(
+            'warn',
+            'Sudah Absen',
+            res.message || 'Data sudah tercatat',
+            [
+              { label: 'Nama', value: res.nama || '-', icon: 'fa-user' },
+              { label: 'Tanggal', value: res.tanggal || '-', icon: 'fa-calendar-day' }
+            ]
           );
           return;
         }
 
+        // Gagal
         if (!res.success) {
-          setResult('<b><i class="fas fa-times-circle"></i> Gagal</b><br>' + res.message, 'err');
+          showResult('err', 'Gagal Menyimpan', res.message || 'Terjadi kesalahan');
           return;
         }
 
-        const ket = res.keterangan || '-';
-        setResult(
-          `<b><i class="fas fa-check-circle"></i> Berhasil disimpan</b><br>
-           Nama: <b>${res.nama}</b><br>
-           Tanggal: <b>${res.tanggal}</b><br>
-           Absen: ${res.absen}<br>
-           Keterangan: <b>${ket}</b>`,
-          'ok'
+        // Sukses
+        const ket = res.keterangan || '';
+        const ketBadge = ket === 'Terlambat'
+          ? { value: 'Terlambat', cls: 'badge-late' }
+          : { value: 'Tepat Waktu', cls: 'badge-ok' };
+
+        showResult(
+          'ok',
+          'Berhasil Disimpan',
+          'Data absensi tercatat di sistem',
+          [
+            { label: 'Nama',       value: res.nama || '-',      icon: 'fa-user' },
+            { label: 'Tanggal',    value: res.tanggal || '-',   icon: 'fa-calendar-day' },
+            { label: 'Jam Absen',  value: res.absen || '-',     icon: 'fa-clock' },
+            { label: 'Keterangan', ...ketBadge,                 icon: 'fa-circle-info' }
+          ]
         );
       })
-      .catch(err => setResult('<i class="fas fa-times-circle"></i> Error: ' + err.message, 'err'));
+      .catch(err => {
+        setStatus('Error', false);
+        showResult('err', 'Error Jaringan', err.message || 'Gagal menghubungi server');
+      });
     }
 
-    function setResult(html, cls) {
-      const el = document.getElementById('result');
-      el.className = 'result' + (cls ? ' ' + cls : '');
-      el.innerHTML = html;
+    // =========================================================
+    // UI HELPERS
+    // =========================================================
+    function setStatus(text, active) {
+      const badge = document.getElementById('statusBadge');
+      if (!badge) return;
+      badge.querySelector('span:last-child').textContent = text;
+      badge.style.opacity = active ? '1' : '0.7';
+    }
+
+    function showLoading(text) {
+      const card = document.getElementById('resultCard');
+      const icon = document.getElementById('resultIcon');
+      const title = document.getElementById('resultTitle');
+      const subtitle = document.getElementById('resultSubtitle');
+      const grid = document.getElementById('resultGrid');
+
+      icon.className = 'result-icon loading';
+      icon.innerHTML = '<i class="fas fa-spinner"></i>';
+      title.textContent = text || 'Memproses…';
+      subtitle.textContent = '';
+      grid.innerHTML = '';
+      card.classList.add('active');
+    }
+
+    function showResult(type, title, subtitle, rows) {
+      const card = document.getElementById('resultCard');
+      const icon = document.getElementById('resultIcon');
+      const titleEl = document.getElementById('resultTitle');
+      const subtitleEl = document.getElementById('resultSubtitle');
+      const grid = document.getElementById('resultGrid');
+
+      const iconMap = {
+        ok:   'fa-circle-check',
+        err:  'fa-circle-xmark',
+        warn: 'fa-circle-info',
+        info: 'fa-circle-info'
+      };
+
+      icon.className = 'result-icon ' + type;
+      icon.innerHTML = '<i class="fas ' + (iconMap[type] || iconMap.info) + '"></i>';
+      titleEl.textContent = title || '';
+      subtitleEl.textContent = subtitle || '';
+
+      grid.innerHTML = '';
+      if (rows && rows.length) {
+        rows.forEach(row => {
+          const rowEl = document.createElement('div');
+          rowEl.className = 'result-row';
+
+          const labelEl = document.createElement('div');
+          labelEl.className = 'result-label';
+          labelEl.innerHTML = '<i class="fas ' + (row.icon || 'fa-circle') + '"></i><span>' + row.label + '</span>';
+
+          const valueEl = document.createElement('div');
+          valueEl.className = 'result-value' + (row.cls ? ' ' + row.cls : '');
+          valueEl.textContent = row.value;
+
+          rowEl.appendChild(labelEl);
+          rowEl.appendChild(valueEl);
+          grid.appendChild(rowEl);
+        });
+      }
+
+      card.classList.add('active');
+      // Scroll ke hasil
+      setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
     }
   </script>
 </body>
