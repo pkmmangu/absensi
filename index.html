@@ -273,6 +273,15 @@
       font-size: 12px; font-weight: 700;
     }
 
+    /* Pesan error panjang untuk kasus ditolak */
+    .result-message {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-primary);
+      text-align: center;
+      padding: 8px 4px;
+    }
+
     .hidden { display: none !important; }
   </style>
 </head>
@@ -478,22 +487,35 @@
           return;
         }
 
-        // ---- Gagal simpan ----
+        // ---- Gagal / Ditolak ----
         if (!res.success) {
-          showResult('err', 'Gagal Menyimpan', res.message || 'Terjadi kesalahan');
+          showResult(
+            'err',
+            'Absensi Ditolak',
+            '',
+            [],
+            res.message || ''
+          );
           kirimKeOpener(res);
           return;
         }
 
         // ---- Sukses ----
-        const ket = res.keterangan || '';
-        const ketBadge = ket === 'Terlambat'
-          ? { value: 'Terlambat',    cls: 'badge-late' }
-          : { value: 'Tepat Waktu',  cls: 'badge-ok'   };
+        const jenisLabelMap = {
+          apel:   'Apel',
+          masuk:  'Masuk',
+          pulang: 'Pulang'
+        };
+        const jenisLabel = jenisLabelMap[res.jenis] || 'Absensi';
+
+        const ket      = res.keterangan || '';
+        const ketBadge = ket
+          ? { value: ket,             cls: 'badge-ok' }
+          : { value: 'Tepat Waktu',   cls: 'badge-ok' };
 
         showResult(
           'ok',
-          'Absensi Berhasil',
+          jenisLabel + ' Berhasil',
           'Data absensi tercatat di sistem',
           [
             { label: 'Nama',       value: res.nama || '-',    icon: 'fa-user' },
@@ -503,7 +525,7 @@
           ]
         );
 
-        // Kirim ke opener — TIDAK auto-close, user yang menutup manual via tombol Tutup
+        // Kirim ke opener — user menutup manual via tombol Tutup
         kirimKeOpener(res);
       })
       .catch(err => {
@@ -578,7 +600,15 @@
       hideActionBtn();
     }
 
-    function showResult(type, title, subtitle, rows) {
+    /**
+     * Tampilkan hasil scan.
+     * @param {string}  type     'ok' | 'err' | 'warn' | 'info'
+     * @param {string}  title    Judul kartu
+     * @param {string}  subtitle Subjudul (bisa kosong)
+     * @param {Array}   rows     Array { label, value, icon, cls? }
+     * @param {string}  message  Pesan panjang (opsional, menggantikan rows)
+     */
+    function showResult(type, title, subtitle, rows, message) {
       const overlay  = document.getElementById('resultOverlay');
       const icon     = document.getElementById('resultIcon');
       const titleEl  = document.getElementById('resultTitle');
@@ -598,6 +628,16 @@
       subEl.textContent   = subtitle || '';
 
       grid.innerHTML = '';
+
+      // Kalau ada pesan panjang, tampilkan sebagai blok teks
+      if (message) {
+        const msgEl = document.createElement('div');
+        msgEl.className = 'result-message';
+        msgEl.textContent = message;
+        grid.appendChild(msgEl);
+      }
+
+      // Kalau ada rows, tampilkan sebagai key-value
       if (rows && rows.length) {
         rows.forEach(row => {
           const rowEl = document.createElement('div');
