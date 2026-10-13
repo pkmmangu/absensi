@@ -305,9 +305,21 @@
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzup4hPq9gLj469YznW3JrJasyFgDUFTCBKqERTUaMPRPMNAS988EWO1q2IyjS_zzf7/exec';
 
     // ---- Geofencing ----
-    const PUSKESMAS_LAT     = -7.6279488;
-    const PUSKESMAS_LNG     = 111.5108823;
-    const MAX_RADIUS_METERS = 100; // radius toleransi (meter)
+    // Daftar lokasi yang diizinkan
+    const LOKASI_DIIZINKAN = [
+      {
+        nama: 'Puskesmas Manguharjo Kota Madiun',
+        lat:  -7.6279488,
+        lng:  111.5108823
+      },
+      {
+        nama: 'Test',
+        lat:  -7.6508941,
+        lng:  111.5341533
+      }
+    ];
+
+    const MAX_RADIUS_METERS = 100; // radius toleransi per lokasi (meter)
 
     const urlParams = new URLSearchParams(window.location.search);
     const USER_ID   = (urlParams.get('user') || '').trim();
@@ -372,31 +384,49 @@
     }
 
     /**
-     * Cek apakah user saat ini berada dalam radius Puskesmas.
-     * @returns {Promise<{ok: boolean, jarak?: number, message?: string}>}
+     * Cek apakah user saat ini berada dalam radius salah satu lokasi yang diizinkan.
+     * @returns {Promise<{ok: boolean, lokasi?: string, jarak?: number, message?: string}>}
      */
     async function cekDalamRadius() {
+      let pos;
       try {
-        const pos = await ambilLokasi();
-        const jarak = hitungJarak(
-          pos.coords.latitude,
-          pos.coords.longitude,
-          PUSKESMAS_LAT,
-          PUSKESMAS_LNG
-        );
-
-        if (jarak > MAX_RADIUS_METERS) {
-          return {
-            ok: false,
-            jarak: Math.round(jarak),
-            message: 'Anda berada di luar area absensi (' + Math.round(jarak) +
-                     ' m dari Puskesmas). Maksimal ' + MAX_RADIUS_METERS + ' m.'
-          };
-        }
-        return { ok: true, jarak: Math.round(jarak) };
+        pos = await ambilLokasi();
       } catch (err) {
         return { ok: false, message: err.message };
       }
+
+      const userLat = pos.coords.latitude;
+      const userLng = pos.coords.longitude;
+
+      // Cari lokasi terdekat
+      let terdekat = null;
+      let jarakTerdekat = Infinity;
+
+      for (const lok of LOKASI_DIIZINKAN) {
+        const jarak = hitungJarak(userLat, userLng, lok.lat, lok.lng);
+        if (jarak < jarakTerdekat) {
+          jarakTerdekat = jarak;
+          terdekat = lok;
+        }
+      }
+
+      // Kalau yang terdekat masih di luar radius → tolak
+      if (!terdekat || jarakTerdekat > MAX_RADIUS_METERS) {
+        const jarakBulat = Math.round(jarakTerdekat);
+        const namaLokasi = terdekat ? terdekat.nama : 'lokasi terdaftar';
+        return {
+          ok: false,
+          jarak: jarakBulat,
+          message: 'Anda berada di luar area absensi. Jarak ke ' + namaLokasi +
+                   ' sekitar ' + jarakBulat + ' m (maksimal ' + MAX_RADIUS_METERS + ' m).'
+        };
+      }
+
+      return {
+        ok: true,
+        lokasi: terdekat.nama,
+        jarak: Math.round(jarakTerdekat)
+      };
     }
 
     // =========================================================
