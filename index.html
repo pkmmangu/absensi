@@ -52,9 +52,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ==================================================
-       SCANNER STAGE (fullscreen)
-    ================================================== */
     .scanner-stage {
       position: fixed;
       inset: 0;
@@ -75,7 +72,6 @@
       border-radius: 0 !important;
     }
 
-    /* Sembunyikan UI bawaan html5-qrcode */
     #reader__dashboard,
     #reader__dashboard_section,
     #reader__dashboard_section_csr,
@@ -86,9 +82,6 @@
     }
     #reader__scan_region { background: transparent !important; }
 
-    /* ==================================================
-       BADGE STATUS (kiri atas)
-    ================================================== */
     .scanner-badge {
       position: absolute;
       top: calc(20px + env(safe-area-inset-top, 0px));
@@ -121,9 +114,6 @@
       50%     { opacity: .5; transform: scale(.85); }
     }
 
-    /* ==================================================
-       OVERLAY GRADIENT BAWAH
-    ================================================== */
     .bottom-overlay {
       position: absolute;
       left: 0; right: 0; bottom: 0;
@@ -138,9 +128,6 @@
       z-index: 3;
     }
 
-    /* ==================================================
-       TOMBOL AKSI (Batal / Tutup)
-    ================================================== */
     .action-btn {
       position: fixed;
       left: 50%;
@@ -170,9 +157,6 @@
       background: rgba(255,255,255,0.22);
     }
 
-    /* ==================================================
-       RESULT OVERLAY
-    ================================================== */
     .result-overlay {
       position: fixed;
       inset: 0;
@@ -273,7 +257,6 @@
       font-size: 12px; font-weight: 700;
     }
 
-    /* Pesan error panjang untuk kasus ditolak */
     .result-message {
       font-size: 14px;
       line-height: 1.6;
@@ -287,7 +270,6 @@
 </head>
 <body>
 
-  <!-- ===== SCANNER FULLSCREEN ===== -->
   <div class="scanner-stage" id="scannerStage">
     <div id="reader"></div>
     <div class="bottom-overlay"></div>
@@ -297,12 +279,10 @@
     </div>
   </div>
 
-  <!-- ===== TOMBOL AKSI (Batal / Tutup) ===== -->
   <button class="action-btn" id="actionBtn" type="button">
     <i class="fas fa-xmark"></i><span id="actionBtnLabel">Batal</span>
   </button>
 
-  <!-- ===== OVERLAY HASIL ===== -->
   <div class="result-overlay" id="resultOverlay">
     <div class="result-card">
       <div class="result-header">
@@ -324,6 +304,11 @@
     // =========================================================
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzup4hPq9gLj469YznW3JrJasyFgDUFTCBKqERTUaMPRPMNAS988EWO1q2IyjS_zzf7/exec';
 
+    // ---- Geofencing ----
+    const PUSKESMAS_LAT     = -7.6279488;
+    const PUSKESMAS_LNG     = 111.5108823;
+    const MAX_RADIUS_METERS = 100; // radius toleransi (meter)
+
     const urlParams = new URLSearchParams(window.location.search);
     const USER_ID   = (urlParams.get('user') || '').trim();
 
@@ -344,29 +329,118 @@
 
     actionBtn.addEventListener('click', () => {
       window.close();
-      // Fallback kalau window.close() diblokir browser
       setTimeout(fallbackCloseScreen, 400);
     });
 
-    function setActionLabel(text) {
-      actionBtnLabel.textContent = text;
-    }
+    function setActionLabel(text) { actionBtnLabel.textContent = text; }
     function showActionBtn() { actionBtn.classList.remove('hidden'); }
     function hideActionBtn() { actionBtn.classList.add('hidden'); }
 
     // =========================================================
+    // GEOFENCING HELPERS
+    // =========================================================
+    function hitungJarak(lat1, lon1, lat2, lon2) {
+      const R = 6371000; // radius bumi (m)
+      const toRad = d => d * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function ambilLokasi() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          return reject(new Error('Browser tidak mendukung layanan lokasi.'));
+        }
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve(pos),
+          err => {
+            let msg = 'Gagal mendapatkan lokasi.';
+            if (err.code === 1) msg = 'Izin lokasi ditolak. Aktifkan izin lokasi di pengaturan browser.';
+            if (err.code === 2) msg = 'Lokasi tidak tersedia. Coba di area terbuka.';
+            if (err.code === 3) msg = 'Waktu permintaan lokasi habis. Coba lagi.';
+            reject(new Error(msg));
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    }
+
+    /**
+     * Cek apakah user saat ini berada dalam radius Puskesmas.
+     * @returns {Promise<{ok: boolean, jarak?: number, message?: string}>}
+     */
+    async function cekDalamRadius() {
+      try {
+        const pos = await ambilLokasi();
+        const jarak = hitungJarak(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          PUSKESMAS_LAT,
+          PUSKESMAS_LNG
+        );
+
+        if (jarak > MAX_RADIUS_METERS) {
+          return {
+            ok: false,
+            jarak: Math.round(jarak),
+            message: 'Anda berada di luar area absensi (' + Math.round(jarak) +
+                     ' m dari Puskesmas). Maksimal ' + MAX_RADIUS_METERS + ' m.'
+          };
+        }
+        return { ok: true, jarak: Math.round(jarak) };
+      } catch (err) {
+        return { ok: false, message: err.message };
+      }
+    }
+
+    // =========================================================
     // INIT
     // =========================================================
-    if (USER_ID) {
-      window.addEventListener('load', startScan);
-    } else {
-      // Tanpa ?user= : matikan scanner, tampilkan pesan tolak akses
+    if (!USER_ID) {
       document.getElementById('scannerStage').classList.add('hidden');
       showResult(
         'warn',
         'Akses Ditolak',
         'Akses dengan Aplikasi SIMANGU untuk melakukan Absensi.'
       );
+    } else {
+      window.addEventListener('load', initApp);
+    }
+
+    async function initApp() {
+      // Cek lokasi sebelum start scanner
+      setStatus('Memeriksa lokasi…', true);
+      showLoading('Memeriksa lokasi Anda…');
+
+      const cek = await cekDalamRadius();
+      if (!cek.ok) {
+        setStatus('Di luar area', false);
+        showResult(
+          'err',
+          'Di Luar Area',
+          'Absensi hanya bisa dilakukan di Puskesmas Manguharjo Kota Madiun',
+          [],
+          cek.message || ''
+        );
+        return;
+      }
+
+      // Lokasi OK → baru jalankan scanner
+      hideOverlay();
+      setStatus('Memindai…', true);
+      startScan();
+    }
+
+    function hideOverlay() {
+      document.getElementById('resultOverlay').classList.remove('active');
+      setActionLabel('Batal');
+      showActionBtn();
     }
 
     // =========================================================
@@ -391,7 +465,6 @@
             () => {}
           );
         } catch (err) {
-          // Fallback: kalau kamera "environment" tidak ada, pakai kamera default
           if (err && err.name === 'NotFoundError') {
             const cams = await Html5Qrcode.getCameras();
             if (!cams.length) throw err;
@@ -447,13 +520,31 @@
     // =========================================================
     // HANDLER SCAN
     // =========================================================
-    function onScanSuccess(decodedText) {
+    async function onScanSuccess(decodedText) {
       const now = Date.now();
       if (decodedText === lastScan && now - lastScanTime < 3000) return;
       lastScan = decodedText;
       lastScanTime = now;
 
       stopScan();
+      setStatus('Memeriksa lokasi…', true);
+      showLoading('Memeriksa lokasi Anda…');
+
+      // ---- Cek lokasi ulang saat scan ----
+      const cek = await cekDalamRadius();
+      if (!cek.ok) {
+        setStatus('Di luar area', false);
+        showResult(
+          'err',
+          'Di Luar Area',
+          'Absensi hanya bisa dilakukan di Puskesmas Manguharjo Kota Madiun',
+          [],
+          cek.message || ''
+        );
+        return;
+      }
+
+      // ---- Lanjut kirim ke server ----
       setStatus('Memproses…', true);
       showLoading('Memproses data…');
 
@@ -489,27 +580,16 @@
 
         // ---- Gagal / Ditolak ----
         if (!res.success) {
-          showResult(
-            'err',
-            'Absensi Ditolak',
-            '',
-            [],
-            res.message || ''
-          );
+          showResult('err', 'Absensi Ditolak', '', [], res.message || '');
           kirimKeOpener(res);
           return;
         }
 
         // ---- Sukses ----
-        const jenisLabelMap = {
-          apel:   'Apel',
-          masuk:  'Masuk',
-          pulang: 'Pulang'
-        };
+        const jenisLabelMap = { apel: 'Apel', masuk: 'Masuk', pulang: 'Pulang' };
         const jenisLabel = jenisLabelMap[res.jenis] || 'Absensi';
 
         const ket = res.keterangan || '';
-        // Pilih warna badge berdasar isi keterangan
         let ketCls = 'badge-ok';
         if (/terlambat/i.test(ket)) ketCls = 'badge-late';
 
@@ -529,7 +609,6 @@
           ]
         );
 
-        // Kirim ke opener — user menutup manual via tombol Tutup
         kirimKeOpener(res);
       })
       .catch(err => {
@@ -600,18 +679,9 @@
       grid.innerHTML = '';
       overlay.classList.add('active');
 
-      // Sembunyikan tombol selama proses
       hideActionBtn();
     }
 
-    /**
-     * Tampilkan hasil scan.
-     * @param {string}  type     'ok' | 'err' | 'warn' | 'info'
-     * @param {string}  title    Judul kartu
-     * @param {string}  subtitle Subjudul (bisa kosong)
-     * @param {Array}   rows     Array { label, value, icon, cls? }
-     * @param {string}  message  Pesan panjang (opsional, menggantikan rows)
-     */
     function showResult(type, title, subtitle, rows, message) {
       const overlay  = document.getElementById('resultOverlay');
       const icon     = document.getElementById('resultIcon');
@@ -633,7 +703,6 @@
 
       grid.innerHTML = '';
 
-      // Kalau ada pesan panjang, tampilkan sebagai blok teks
       if (message) {
         const msgEl = document.createElement('div');
         msgEl.className = 'result-message';
@@ -641,7 +710,6 @@
         grid.appendChild(msgEl);
       }
 
-      // Kalau ada rows, tampilkan sebagai key-value
       if (rows && rows.length) {
         rows.forEach(row => {
           const rowEl = document.createElement('div');
@@ -664,7 +732,6 @@
 
       overlay.classList.add('active');
 
-      // Tampilkan tombol dengan label "Tutup"
       setActionLabel('Tutup');
       showActionBtn();
     }
