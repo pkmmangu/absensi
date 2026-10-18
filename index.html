@@ -319,7 +319,7 @@
 
   <!-- input file tersembunyi -->
   <input type="file" id="fileInput" accept="image/*" class="hidden">
-  <!-- kontainer tersembunyi untuk decoder file (terpisah dari scanner kamera) -->
+  <!-- kontainer tersembunyi untuk decoder file -->
   <div id="fileQrReader"
        style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;"></div>
 
@@ -366,14 +366,15 @@
     // =========================================================
     // STATE
     // =========================================================
-    let html5QrCode  = null;
-    let scanning     = false;
-    let starting     = false;
-    let lastScan     = '';
-    let lastScanTime = 0;
+    let html5QrCode    = null;
+    let scanning       = false;
+    let starting       = false;
+    let lastScan       = '';
+    let lastScanTime   = 0;
 
-    let fileQrCode   = null;   
-    let pendingRetry = null;   
+    let fileQrCode     = null;   
+    let pendingRetry   = null;   
+    let IMPORT_ENABLED = false; // State baru untuk menyimpan status button import
 
     // =========================================================
     // TOMBOL AKSI
@@ -398,8 +399,15 @@
     function showActionBtn() { actionBtn.classList.remove('hidden'); }
     function hideActionBtn() { actionBtn.classList.add('hidden'); }
 
-    function showImportBtn() { importBtn.classList.remove('hidden'); }
-    function hideImportBtn() { importBtn.classList.add('hidden'); }
+    // Hanya tampilkan Import jika diizinkan oleh server
+    function showImportBtn() { 
+      if (IMPORT_ENABLED) {
+        importBtn.classList.remove('hidden'); 
+      }
+    }
+    function hideImportBtn() { 
+      importBtn.classList.add('hidden'); 
+    }
 
     // =========================================================
     // IMPORT QR DARI GAMBAR
@@ -432,11 +440,9 @@
       try {
         const inst = getFileQrCode();
         if (typeof inst.scanFileV2 === 'function') {
-          // scanFileV2 mengembalikan objek, ambil .decodedText-nya
           const resultV2 = await inst.scanFileV2(file, false);
           decodedText = resultV2.decodedText; 
         } else {
-          // scanFile mengembalikan string langsung
           decodedText = await inst.scanFile(file, false);
         }
       } catch (err) {
@@ -462,7 +468,6 @@
         return;
       }
 
-      // Penting: bersihkan spasi atau enter tak terlihat
       decodedText = decodedText.trim(); 
 
       await prosesHasilScan(decodedText);
@@ -559,9 +564,24 @@
     }
 
     async function initApp() {
-      showImportBtn();
+      setStatus('Memeriksa konfigurasi…', true);
+      showLoading('Memuat pengaturan…');
+
+      // ---- 1. Ambil pengaturan button import dari server ----
+      try {
+        const res = await fetch(APPS_SCRIPT_URL + '?action=config');
+        const data = await res.json();
+        if (data.success && data.importEnabled) {
+          IMPORT_ENABLED = true;
+          showImportBtn(); // Tampilkan karena di-enable dari sheet
+        }
+      } catch (e) {
+        console.warn('Gagal memuat config:', e);
+      }
+
+      // ---- 2. Cek Lokasi (Geofencing) ----
       setStatus('Memeriksa lokasi…', true);
-      showLoading('Memeriksa lokasi Anda…', { keepImport: true });
+      showLoading('Memeriksa lokasi Anda…');
 
       const cek = await cekDalamRadius();
       if (!cek.ok) {
@@ -576,6 +596,7 @@
         return;
       }
 
+      // ---- 3. Mulai Scanner ----
       hideOverlay();
       setStatus('Memindai…', true);
       startScan();
@@ -705,7 +726,6 @@
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        // Ditambahkan String() untuk memastikan aman dari tipe data number
         body: JSON.stringify({ barcode: String(decodedText), user: String(USER_ID) })
       })
       .then(r => r.text())
