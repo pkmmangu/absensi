@@ -425,13 +425,16 @@
       setStatus('Membaca gambar…', true);
       showLoading('Membaca QR dari gambar…');
 
-      let decoded = null;
+      let decodedText = null;
       try {
         const inst = getFileQrCode();
         if (typeof inst.scanFileV2 === 'function') {
-          decoded = await inst.scanFileV2(file, false);
+          // scanFileV2 mengembalikan objek, kita harus ambil .decodedText-nya
+          const resultV2 = await inst.scanFileV2(file, false);
+          decodedText = resultV2.decodedText; 
         } else {
-          decoded = await inst.scanFile(file, false);
+          // scanFile mengembalikan string langsung
+          decodedText = await inst.scanFile(file, false);
         }
       } catch (err) {
         setStatus('QR tidak terbaca', false);
@@ -442,7 +445,6 @@
           [],
           'Gambar tidak mengandung QR yang valid. Pastikan QR terlihat jelas, tidak blur, dan tidak terpotong.'
         );
-        // izinkan coba lagi tanpa menutup halaman
         pendingRetry = () => {
           hideOverlay();
         };
@@ -450,7 +452,7 @@
         return;
       }
 
-      if (!decoded) {
+      if (!decodedText) {
         setStatus('QR tidak terbaca', false);
         showResult('err', 'QR Tidak Terbaca', '', [],
           'Gambar tidak mengandung QR yang valid.');
@@ -459,7 +461,10 @@
         return;
       }
 
-      await prosesHasilScan(decoded);
+      // Penting: bersihkan spasi atau enter tak terlihat yang mungkin ada di gambar
+      decodedText = decodedText.trim(); 
+
+      await prosesHasilScan(decodedText);
     }
 
     // =========================================================
