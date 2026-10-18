@@ -135,7 +135,7 @@
       bottom: calc(28px + env(safe-area-inset-bottom, 0px));
       z-index: 100;
       display: flex;
-      flex-direction: column; /* Ubah ke vertikal (atas-bawah) */
+      flex-direction: column;
       gap: 12px;
       justify-content: center;
       align-items: center;
@@ -151,7 +151,7 @@
       gap: 8px;
 
       width: 100%;
-      max-width: 220px; /* Lebar tombol diseragamkan */
+      max-width: 220px;
       padding: 15px 24px;
       border: 1px solid rgba(255,255,255,0.28);
       border-radius: 40px;
@@ -174,7 +174,6 @@
       background: rgba(255,255,255,0.22);
     }
 
-    /* Styling khusus tombol Import */
     .action-btn.btn-import {
       background: rgba(52, 211, 153, 0.85);
       border-color: #34d399;
@@ -307,7 +306,7 @@
     </div>
   </div>
 
-  <!-- ====== TOMBOL IMPORT + BATAL (VERTIKAL) ====== -->
+  <!-- ====== TOMBOL IMPORT + BATAL ====== -->
   <div class="action-bar">
     <button class="action-btn btn-import hidden" id="importBtn" type="button">
       <i class="fas fa-image"></i><span>Import</span>
@@ -360,12 +359,23 @@
 
     const MAX_RADIUS_METERS = 100;
 
+    // =========================================================
+    // URL PARSING & STATE
+    // =========================================================
     const urlParams = new URLSearchParams(window.location.search);
-    const USER_ID   = (urlParams.get('user') || '').trim();
+    let USER_ID = (urlParams.get('user') || '').trim();
+    let importParam = (urlParams.get('import') || '').trim();
 
-    // =========================================================
-    // STATE
-    // =========================================================
+    // Toleransi jika link yang dibuka ?user=123?import=enable (menggunakan tanda tanya ganda)
+    if (USER_ID.includes('?import=')) {
+      const parts = USER_ID.split('?import=');
+      USER_ID = parts[0];
+      importParam = parts[1];
+    }
+
+    // Cek apakah import di-enable dari URL
+    const IMPORT_ENABLED = (importParam.toLowerCase() === 'enable');
+
     let html5QrCode    = null;
     let scanning       = false;
     let starting       = false;
@@ -374,7 +384,6 @@
 
     let fileQrCode     = null;   
     let pendingRetry   = null;   
-    let IMPORT_ENABLED = false; // State baru untuk menyimpan status button import
 
     // =========================================================
     // TOMBOL AKSI
@@ -399,7 +408,6 @@
     function showActionBtn() { actionBtn.classList.remove('hidden'); }
     function hideActionBtn() { actionBtn.classList.add('hidden'); }
 
-    // Hanya tampilkan Import jika diizinkan oleh server
     function showImportBtn() { 
       if (IMPORT_ENABLED) {
         importBtn.classList.remove('hidden'); 
@@ -564,22 +572,7 @@
     }
 
     async function initApp() {
-      setStatus('Memeriksa konfigurasi…', true);
-      showLoading('Memuat pengaturan…');
-
-      // ---- 1. Ambil pengaturan button import dari server ----
-      try {
-        const res = await fetch(APPS_SCRIPT_URL + '?action=config');
-        const data = await res.json();
-        if (data.success && data.importEnabled) {
-          IMPORT_ENABLED = true;
-          showImportBtn(); // Tampilkan karena di-enable dari sheet
-        }
-      } catch (e) {
-        console.warn('Gagal memuat config:', e);
-      }
-
-      // ---- 2. Cek Lokasi (Geofencing) ----
+      // Kembali ke alur semula: Langsung cek lokasi tanpa loading konfigurasi
       setStatus('Memeriksa lokasi…', true);
       showLoading('Memeriksa lokasi Anda…');
 
@@ -596,7 +589,6 @@
         return;
       }
 
-      // ---- 3. Mulai Scanner ----
       hideOverlay();
       setStatus('Memindai…', true);
       startScan();
@@ -606,7 +598,7 @@
       document.getElementById('resultOverlay').classList.remove('active');
       setActionLabel('Batal');
       showActionBtn();
-      showImportBtn();
+      showImportBtn(); // Hanya akan tampil jika IMPORT_ENABLED = true dari URL
     }
 
     // =========================================================
