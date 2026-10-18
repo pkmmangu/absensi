@@ -128,15 +128,28 @@
       z-index: 3;
     }
 
-    .action-btn {
+    /* ====== BARIS TOMBOL BAWAH ====== */
+    .action-bar {
       position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 0; right: 0;
       bottom: calc(28px + env(safe-area-inset-bottom, 0px));
       z-index: 100;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+      padding: 0 16px;
+      pointer-events: none;
+    }
 
-      min-width: 190px;
-      padding: 15px 40px;
+    .action-btn {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      padding: 14px 24px;
       border: 1px solid rgba(255,255,255,0.28);
       border-radius: 40px;
       background: rgba(255,255,255,0.14);
@@ -150,11 +163,20 @@
       transition: background .2s ease, transform .15s ease, opacity .2s ease;
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
       font-family: inherit;
+      white-space: nowrap;
     }
-    .action-btn i { margin-right: 8px; font-size: 14px; }
+    .action-btn i { font-size: 14px; }
     .action-btn:active {
-      transform: translateX(-50%) scale(0.96);
+      transform: scale(0.96);
       background: rgba(255,255,255,0.22);
+    }
+
+    .action-btn.btn-import {
+      background: rgba(52, 211, 153, 0.20);
+      border-color: rgba(52, 211, 153, 0.45);
+    }
+    .action-btn.btn-import:active {
+      background: rgba(52, 211, 153, 0.34);
     }
 
     .result-overlay {
@@ -279,9 +301,21 @@
     </div>
   </div>
 
-  <button class="action-btn" id="actionBtn" type="button">
-    <i class="fas fa-xmark"></i><span id="actionBtnLabel">Batal</span>
-  </button>
+  <!-- ====== TOMBOL IMPORT + BATAL ====== -->
+  <div class="action-bar">
+    <button class="action-btn btn-import hidden" id="importBtn" type="button">
+      <i class="fas fa-image"></i><span>Import</span>
+    </button>
+    <button class="action-btn" id="actionBtn" type="button">
+      <i class="fas fa-xmark"></i><span id="actionBtnLabel">Batal</span>
+    </button>
+  </div>
+
+  <!-- input file tersembunyi -->
+  <input type="file" id="fileInput" accept="image/*" class="hidden">
+  <!-- kontainer tersembunyi untuk decoder file (terpisah dari scanner kamera) -->
+  <div id="fileQrReader"
+       style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;"></div>
 
   <div class="result-overlay" id="resultOverlay">
     <div class="result-card">
@@ -305,7 +339,6 @@
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzup4hPq9gLj469YznW3JrJasyFgDUFTCBKqERTUaMPRPMNAS988EWO1q2IyjS_zzf7/exec';
 
     // ---- Geofencing ----
-    // Daftar lokasi yang diizinkan
     const LOKASI_DIIZINKAN = [
       {
         nama: 'Puskesmas Manguharjo Kota Madiun',
@@ -319,7 +352,7 @@
       }
     ];
 
-    const MAX_RADIUS_METERS = 100; // radius toleransi per lokasi (meter)
+    const MAX_RADIUS_METERS = 100;
 
     const urlParams = new URLSearchParams(window.location.search);
     const USER_ID   = (urlParams.get('user') || '').trim();
@@ -333,13 +366,25 @@
     let lastScan     = '';
     let lastScanTime = 0;
 
+    let fileQrCode   = null;   // instance terpisah untuk scan dari file
+    let pendingRetry = null;   // aksi khusus saat tombol bawah ditekan
+
     // =========================================================
     // TOMBOL AKSI
     // =========================================================
     const actionBtn      = document.getElementById('actionBtn');
     const actionBtnLabel = document.getElementById('actionBtnLabel');
+    const importBtn      = document.getElementById('importBtn');
+    const fileInput      = document.getElementById('fileInput');
 
     actionBtn.addEventListener('click', () => {
+      // Kalau ada aksi retry (misal QR gagal dibaca), jalankan itu dulu
+      if (pendingRetry) {
+        const fn = pendingRetry;
+        pendingRetry = null;
+        fn();
+        return;
+      }
       window.close();
       setTimeout(fallbackCloseScreen, 400);
     });
@@ -348,11 +393,77 @@
     function showActionBtn() { actionBtn.classList.remove('hidden'); }
     function hideActionBtn() { actionBtn.classList.add('hidden'); }
 
+    function showImportBtn() { importBtn.classList.remove('hidden'); }
+    function hideImportBtn() { importBtn.classList.add('hidden'); }
+
+    // =========================================================
+    // IMPORT QR DARI GAMBAR
+    // =========================================================
+    importBtn.addEventListener('click', () => {
+      if (!USER_ID) return;
+      fileInput.value = '';
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      prosesFileQr(file);
+    });
+
+    function getFileQrCode() {
+      if (!fileQrCode) {
+        fileQrCode = new Html5Qrcode("fileQrReader", { verbose: false });
+      }
+      return fileQrCode;
+    }
+
+    async function prosesFileQr(file) {
+      setStatus('Membaca gambar…', true);
+      showLoading('Membaca QR dari gambar…');
+
+      let decoded = null;
+      try {
+        const inst = getFileQrCode();
+        if (typeof inst.scanFileV2 === 'function') {
+          decoded = await inst.scanFileV2(file, false);
+        } else {
+          decoded = await inst.scanFile(file, false);
+        }
+      } catch (err) {
+        setStatus('QR tidak terbaca', false);
+        showResult(
+          'err',
+          'QR Tidak Terbaca',
+          '',
+          [],
+          'Gambar tidak mengandung QR yang valid. Pastikan QR terlihat jelas, tidak blur, dan tidak terpotong.'
+        );
+        // izinkan coba lagi tanpa menutup halaman
+        pendingRetry = () => {
+          hideOverlay();
+        };
+        setActionLabel('Coba Lagi');
+        return;
+      }
+
+      if (!decoded) {
+        setStatus('QR tidak terbaca', false);
+        showResult('err', 'QR Tidak Terbaca', '', [],
+          'Gambar tidak mengandung QR yang valid.');
+        pendingRetry = () => { hideOverlay(); };
+        setActionLabel('Coba Lagi');
+        return;
+      }
+
+      await prosesHasilScan(decoded);
+    }
+
     // =========================================================
     // GEOFENCING HELPERS
     // =========================================================
     function hitungJarak(lat1, lon1, lat2, lon2) {
-      const R = 6371000; // radius bumi (m)
+      const R = 6371000;
       const toRad = d => d * Math.PI / 180;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
@@ -383,10 +494,6 @@
       });
     }
 
-    /**
-     * Cek apakah user saat ini berada dalam radius salah satu lokasi yang diizinkan.
-     * @returns {Promise<{ok: boolean, lokasi?: string, jarak?: number, message?: string}>}
-     */
     async function cekDalamRadius() {
       let pos;
       try {
@@ -398,7 +505,6 @@
       const userLat = pos.coords.latitude;
       const userLng = pos.coords.longitude;
 
-      // Cari lokasi terdekat
       let terdekat = null;
       let jarakTerdekat = Infinity;
 
@@ -410,7 +516,6 @@
         }
       }
 
-      // Kalau yang terdekat masih di luar radius → tolak
       if (!terdekat || jarakTerdekat > MAX_RADIUS_METERS) {
         const jarakBulat = Math.round(jarakTerdekat);
         const namaLokasi = terdekat ? terdekat.nama : 'lokasi terdaftar';
@@ -434,6 +539,7 @@
     // =========================================================
     if (!USER_ID) {
       document.getElementById('scannerStage').classList.add('hidden');
+      hideImportBtn();
       showResult(
         'warn',
         'Akses Ditolak',
@@ -444,7 +550,6 @@
     }
 
     async function initApp() {
-      // Cek lokasi sebelum start scanner
       setStatus('Memeriksa lokasi…', true);
       showLoading('Memeriksa lokasi Anda…');
 
@@ -461,7 +566,6 @@
         return;
       }
 
-      // Lokasi OK → baru jalankan scanner
       hideOverlay();
       setStatus('Memindai…', true);
       startScan();
@@ -471,6 +575,7 @@
       document.getElementById('resultOverlay').classList.remove('active');
       setActionLabel('Batal');
       showActionBtn();
+      showImportBtn();
     }
 
     // =========================================================
@@ -548,19 +653,29 @@
     }
 
     // =========================================================
-    // HANDLER SCAN
+    // HANDLER SCAN (KAMERA)
     // =========================================================
     async function onScanSuccess(decodedText) {
+      // Abaikan scan kamera saat overlay hasil/loading sedang tampil
+      if (document.getElementById('resultOverlay').classList.contains('active')) return;
+
       const now = Date.now();
       if (decodedText === lastScan && now - lastScanTime < 3000) return;
       lastScan = decodedText;
       lastScanTime = now;
 
       stopScan();
+      await prosesHasilScan(decodedText);
+    }
+
+    // =========================================================
+    // PROSES HASIL (dipakai kamera & file import)
+    // =========================================================
+    async function prosesHasilScan(decodedText) {
       setStatus('Memeriksa lokasi…', true);
       showLoading('Memeriksa lokasi Anda…');
 
-      // ---- Cek lokasi ulang saat scan ----
+      // ---- Cek lokasi ulang ----
       const cek = await cekDalamRadius();
       if (!cek.ok) {
         setStatus('Di luar area', false);
@@ -574,7 +689,7 @@
         return;
       }
 
-      // ---- Lanjut kirim ke server ----
+      // ---- Kirim ke server ----
       setStatus('Memproses…', true);
       showLoading('Memproses data…');
 
@@ -702,6 +817,8 @@
       const subtitle = document.getElementById('resultSubtitle');
       const grid     = document.getElementById('resultGrid');
 
+      pendingRetry = null;
+
       icon.className = 'result-icon loading';
       icon.innerHTML = '<i class="fas fa-spinner"></i>';
       title.textContent = text || 'Memproses…';
@@ -710,6 +827,7 @@
       overlay.classList.add('active');
 
       hideActionBtn();
+      hideImportBtn();
     }
 
     function showResult(type, title, subtitle, rows, message) {
@@ -718,6 +836,8 @@
       const titleEl  = document.getElementById('resultTitle');
       const subEl    = document.getElementById('resultSubtitle');
       const grid     = document.getElementById('resultGrid');
+
+      pendingRetry = null;
 
       const iconMap = {
         ok:   'fa-circle-check',
@@ -764,6 +884,7 @@
 
       setActionLabel('Tutup');
       showActionBtn();
+      hideImportBtn();
     }
   </script>
 </body>
