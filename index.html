@@ -128,13 +128,14 @@
       z-index: 3;
     }
 
-    /* ====== BARIS TOMBOL BAWAH ====== */
+    /* ====== BARIS TOMBOL BAWAH (VERTIKAL) ====== */
     .action-bar {
       position: fixed;
       left: 0; right: 0;
       bottom: calc(28px + env(safe-area-inset-bottom, 0px));
       z-index: 100;
       display: flex;
+      flex-direction: column; /* Ubah ke vertikal (atas-bawah) */
       gap: 12px;
       justify-content: center;
       align-items: center;
@@ -144,12 +145,14 @@
 
     .action-btn {
       pointer-events: auto;
-      display: inline-flex;
+      display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
 
-      padding: 14px 24px;
+      width: 100%;
+      max-width: 220px; /* Lebar tombol diseragamkan */
+      padding: 15px 24px;
       border: 1px solid rgba(255,255,255,0.28);
       border-radius: 40px;
       background: rgba(255,255,255,0.14);
@@ -171,6 +174,7 @@
       background: rgba(255,255,255,0.22);
     }
 
+    /* Styling khusus tombol Import */
     .action-btn.btn-import {
       background: rgba(52, 211, 153, 0.85);
       border-color: #34d399;
@@ -303,7 +307,7 @@
     </div>
   </div>
 
-  <!-- ====== TOMBOL IMPORT + BATAL ====== -->
+  <!-- ====== TOMBOL IMPORT + BATAL (VERTIKAL) ====== -->
   <div class="action-bar">
     <button class="action-btn btn-import hidden" id="importBtn" type="button">
       <i class="fas fa-image"></i><span>Import</span>
@@ -368,8 +372,8 @@
     let lastScan     = '';
     let lastScanTime = 0;
 
-    let fileQrCode   = null;   // instance terpisah untuk scan dari file
-    let pendingRetry = null;   // aksi khusus saat tombol bawah ditekan
+    let fileQrCode   = null;   
+    let pendingRetry = null;   
 
     // =========================================================
     // TOMBOL AKSI
@@ -380,7 +384,6 @@
     const fileInput      = document.getElementById('fileInput');
 
     actionBtn.addEventListener('click', () => {
-      // Kalau ada aksi retry (misal QR gagal dibaca), jalankan itu dulu
       if (pendingRetry) {
         const fn = pendingRetry;
         pendingRetry = null;
@@ -429,7 +432,7 @@
       try {
         const inst = getFileQrCode();
         if (typeof inst.scanFileV2 === 'function') {
-          // scanFileV2 mengembalikan objek, kita harus ambil .decodedText-nya
+          // scanFileV2 mengembalikan objek, ambil .decodedText-nya
           const resultV2 = await inst.scanFileV2(file, false);
           decodedText = resultV2.decodedText; 
         } else {
@@ -445,9 +448,7 @@
           [],
           'Gambar tidak mengandung QR yang valid. Pastikan QR terlihat jelas, tidak blur, dan tidak terpotong.'
         );
-        pendingRetry = () => {
-          hideOverlay();
-        };
+        pendingRetry = () => { hideOverlay(); };
         setActionLabel('Coba Lagi');
         return;
       }
@@ -461,7 +462,7 @@
         return;
       }
 
-      // Penting: bersihkan spasi atau enter tak terlihat yang mungkin ada di gambar
+      // Penting: bersihkan spasi atau enter tak terlihat
       decodedText = decodedText.trim(); 
 
       await prosesHasilScan(decodedText);
@@ -558,9 +559,9 @@
     }
 
     async function initApp() {
-      showImportBtn();                                    // <-- tampilkan lebih awal
+      showImportBtn();
       setStatus('Memeriksa lokasi…', true);
-      showLoading('Memeriksa lokasi Anda…', { keepImport: true });  // <-- tetap tampil
+      showLoading('Memeriksa lokasi Anda…', { keepImport: true });
 
       const cek = await cekDalamRadius();
       if (!cek.ok) {
@@ -665,7 +666,6 @@
     // HANDLER SCAN (KAMERA)
     // =========================================================
     async function onScanSuccess(decodedText) {
-      // Abaikan scan kamera saat overlay hasil/loading sedang tampil
       if (document.getElementById('resultOverlay').classList.contains('active')) return;
 
       const now = Date.now();
@@ -685,7 +685,6 @@
       setStatus('Memeriksa lokasi…', true);
       showLoading('Memeriksa lokasi Anda…');
 
-      // ---- Cek lokasi ulang ----
       const cek = await cekDalamRadius();
       if (!cek.ok) {
         setStatus('Di luar area', false);
@@ -699,7 +698,6 @@
         return;
       }
 
-      // ---- Kirim ke server ----
       setStatus('Memproses…', true);
       showLoading('Memproses data…');
 
@@ -707,7 +705,8 @@
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ barcode: decodedText, user: USER_ID })
+        // Ditambahkan String() untuk memastikan aman dari tipe data number
+        body: JSON.stringify({ barcode: String(decodedText), user: String(USER_ID) })
       })
       .then(r => r.text())
       .then(text => {
@@ -717,7 +716,6 @@
 
         setStatus('Selesai', false);
 
-        // ---- Duplikat ----
         if (res.duplicate) {
           showResult(
             'warn',
@@ -733,14 +731,12 @@
           return;
         }
 
-        // ---- Gagal / Ditolak ----
         if (!res.success) {
           showResult('err', 'Absensi Ditolak', '', [], res.message || '');
           kirimKeOpener(res);
           return;
         }
 
-        // ---- Sukses ----
         const jenisLabelMap = { apel: 'Apel', masuk: 'Masuk', pulang: 'Pulang' };
         const jenisLabel = jenisLabelMap[res.jenis] || 'Absensi';
 
@@ -837,7 +833,7 @@
       overlay.classList.add('active');
 
       hideActionBtn();
-      if (!options.keepImport) hideImportBtn();  // <-- opsi baru
+      if (!options.keepImport) hideImportBtn();
     }
 
     function showResult(type, title, subtitle, rows, message) {
