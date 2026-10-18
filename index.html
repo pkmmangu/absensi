@@ -172,11 +172,13 @@
     }
 
     .action-btn.btn-import {
-      background: rgba(52, 211, 153, 0.20);
-      border-color: rgba(52, 211, 153, 0.45);
+      background: rgba(52, 211, 153, 0.85);
+      border-color: #34d399;
+      color: #052e1f;
+      font-weight: 700;
     }
     .action-btn.btn-import:active {
-      background: rgba(52, 211, 153, 0.34);
+      background: rgba(52, 211, 153, 1);
     }
 
     .result-overlay {
@@ -419,6 +421,7 @@
     }
 
     async function prosesFileQr(file) {
+      hideImportBtn();
       setStatus('Membaca gambar…', true);
       showLoading('Membaca QR dari gambar…');
 
@@ -550,8 +553,9 @@
     }
 
     async function initApp() {
+      showImportBtn();                                    // <-- tampilkan lebih awal
       setStatus('Memeriksa lokasi…', true);
-      showLoading('Memeriksa lokasi Anda…');
+      showLoading('Memeriksa lokasi Anda…', { keepImport: true });  // <-- tetap tampil
 
       const cek = await cekDalamRadius();
       if (!cek.ok) {
@@ -672,6 +676,7 @@
     // PROSES HASIL (dipakai kamera & file import)
     // =========================================================
     async function prosesHasilScan(decodedText) {
+      hideImportBtn();
       setStatus('Memeriksa lokasi…', true);
       showLoading('Memeriksa lokasi Anda…');
 
@@ -810,7 +815,7 @@
       badge.style.opacity = active ? '1' : '0.7';
     }
 
-    function showLoading(text) {
+    function showLoading(text, options = {}) {
       const overlay  = document.getElementById('resultOverlay');
       const icon     = document.getElementById('resultIcon');
       const title    = document.getElementById('resultTitle');
@@ -827,7 +832,7 @@
       overlay.classList.add('active');
 
       hideActionBtn();
-      hideImportBtn();
+      if (!options.keepImport) hideImportBtn();  // <-- opsi baru
     }
 
     function showResult(type, title, subtitle, rows, message) {
